@@ -21,36 +21,39 @@ def _plot_accuracy_vs_readlength(dsets_kpis):
     Return plot structure.
     """
 
-    traces = []; titles = []; max_rl = 0
+    traces = []
+    titles = []
+    max_rl = 0
     for key in dsets_kpis.keys():
         rl = dsets_kpis[key]['readlength']
         acc = dsets_kpis[key]['accuracy']
         if max(rl) > max_rl:
             max_rl = max(rl)
         trace = Scatter(
-                x = rl,
-                y = acc,
-                mode='markers'
+            x=rl,
+            y=acc,
+            mode='markers'
         )
-        traces.append( trace )
-        titles.append( str(key) )
-    rows = len( traces )
+        traces.append(trace)
+        titles.append(str(key))
+    rows = len(traces)
     fig = plotly.tools.make_subplots(rows=rows, cols=1,
                                      subplot_titles=tuple(titles))
     fig['layout']['font']['size'] = 16
     fig['layout'].update(showlegend=False)
-    for row,trace in enumerate(traces):
-        fig.append_trace(trace, row+1, 1) # convert from zero-based to one-based indexing
-        fig['layout']['xaxis'+str(row+1)]['tickfont'].update(size=24)
-        fig['layout']['yaxis'+str(row+1)]['tickfont'].update(size=24)
-        fig['layout']['xaxis'+str(row+1)].update(range=[0,max_rl])
+    for row, trace in enumerate(traces):
+        fig.append_trace(trace, row + 1, 1)  # convert from zero-based to one-based indexing
+        fig['layout']['xaxis' + str(row + 1)]['tickfont'].update(size=24)
+        fig['layout']['yaxis' + str(row + 1)]['tickfont'].update(size=24)
+        fig['layout']['xaxis' + str(row + 1)].update(range=[0, max_rl])
 
-    fig['layout']['yaxis'+str(rows/2+1)].update(title='accuracy')
-    fig['layout']['yaxis'+str(rows/2+1)]['titlefont'].update(size=24)
-    fig['layout']['xaxis'+str(rows)].update(title='readlength (bases)')
-    fig['layout']['xaxis'+str(rows)]['titlefont'].update(size=24)
+    fig['layout']['yaxis' + str(rows / 2 + 1)].update(title='accuracy')
+    fig['layout']['yaxis' + str(rows / 2 + 1)]['titlefont'].update(size=24)
+    fig['layout']['xaxis' + str(rows)].update(title='readlength (bases)')
+    fig['layout']['xaxis' + str(rows)]['titlefont'].update(size=24)
 
     return fig
+
 
 def _plot_accuracy_distribution(dsets_kpis):
     """
@@ -76,6 +79,7 @@ def _plot_accuracy_distribution(dsets_kpis):
 
     return fig
 
+
 def _plot_accuracy_boxplots(dsets_kpis):
     """
     Generate plotly boxplots of accuracy distributions, side-by-side
@@ -84,10 +88,10 @@ def _plot_accuracy_boxplots(dsets_kpis):
     traces = []
     for key in dsets_kpis.keys():
         trace = Box(
-            name = key,
-            y = dsets_kpis[key]['accuracy'],
-            boxpoints = 'all',
-            jitter = 0.2,
+            name=key,
+            y=dsets_kpis[key]['accuracy'],
+            boxpoints='all',
+            jitter=0.2,
             marker=dict(
                 size=4,
                 opacity=0.25

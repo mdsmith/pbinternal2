@@ -153,16 +153,17 @@ def _example_main(input_file, output_file, **kwargs):
         subsampled_dset = _subsample_alignments(dset)
         dsets_kpis[f] = _getKPIs(dset, subsampled_dset)
 
-    figures = []
-    # figure tuple has form (plot_group_id, plot_id, figure)
-    figures.append(('accuracy', 'accuracy_vs_readlength', accuracy_plots._plot_accuracy_vs_readlength(dsets_kpis)))
-    figures.append(('accuracy', 'accuracy', accuracy_plots._plot_accuracy_distribution(dsets_kpis)))
-    figures.append(('accuracy', 'accuracy_boxplot', accuracy_plots._plot_accuracy_boxplots(dsets_kpis)))
+    # figure tuple has form (plot_group_id, plot_id, Plot Name, figure)
+    figures = [
+        ('accuracy', 'accuracy_vs_readlength', "Accuracy vs ReadLength", accuracy_plots._plot_accuracy_vs_readlength(dsets_kpis)),
+        ('accuracy', 'accuracy', "Accuracy", accuracy_plots._plot_accuracy_distribution(dsets_kpis)),
+        ('accuracy', 'accuracy_boxplot', "Accuracy BoxPlot", accuracy_plots._plot_accuracy_boxplots(dsets_kpis))
+    ]
 
-    all_plots = {} # dictionary of plots. keys are groups
+    all_plots = {}  # dictionary of plots. keys are groups
 
     with PhantomDriver() as driver:
-        for plot_group, plot_id, fig in figures:
+        for plot_group, plot_id, display_name, fig in figures:
             if plot_group not in all_plots.keys():
                 all_plots[plot_group] = []
             plot(fig, filename='{i}.html'.format(i=plot_id), show_link=False, auto_open=False)
@@ -179,13 +180,17 @@ def _example_main(input_file, output_file, **kwargs):
             os.remove('{i}.html'.format(i=plot_id))
             plot_path = '{i}.png'.format(i=plot_id)
             thumb_path = '{i}_thumb.png'.format(i=plot_id)
-            all_plots[plot_group].append(Plot(plot_id, plot_path, thumbnail=thumb_path))
+            # the Plot API is a bit awkward. It should have "title"
+            # the caption will be used as the display name
+            p = Plot(plot_id, plot_path, thumbnail=thumb_path, caption=display_name)
+            all_plots[plot_group].append(p)
 
     log.info("completed generating {} plots".format(len(all_plots)))
 
     plot_groups = []
     for plot_group_title in all_plots.keys():
-        plot_group = PlotGroup(plot_group_title, plots=all_plots[plot_group_title])
+        plot_group = PlotGroup(plot_group_title, title="Accuracy Plots",
+                               plots=all_plots[plot_group_title])
         plot_groups.append(plot_group)
 
     report = Report('mh_toy', tables=(), plotgroups=plot_groups, attributes=())
