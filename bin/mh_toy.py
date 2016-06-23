@@ -160,7 +160,7 @@ def _example_main(input_file, output_file, **kwargs):
         ('accuracy', 'accuracy_boxplot', "Accuracy BoxPlot", accuracy_plots._plot_accuracy_boxplots(dsets_kpis))
     ]
 
-    all_plots = {} # dictionary of plots. keys are groups
+    all_plots = {}  # dictionary of plots. keys are groups
 
     with PhantomDriver() as driver:
         for plot_group, plot_id, display_name, fig in figures:
