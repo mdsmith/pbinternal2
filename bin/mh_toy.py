@@ -93,6 +93,8 @@ def _get_dset_paths(file):
 def _subsample_alignments(mapped_subreadset, num=1000):
     if len(mapped_subreadset) > num:
         ss = random.sample(mapped_subreadset, num)
+    else:
+        ss = mapped_subreadset
     return ss
 
 
