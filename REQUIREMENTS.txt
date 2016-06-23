@@ -1,2 +1,5 @@
 pbcommand>=0.4.0
 pbcore>=1.2.10
+# this needs to be re-evaluated
+plotly
+selenium
