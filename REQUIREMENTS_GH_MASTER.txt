@@ -1,0 +1,2 @@
+-e git://github.com/PacificBiosciences/pbcore.git#egg=pbcore
+-e git://github.com/PacificBiosciences/pbcommand.git#egg=pbcommand
