@@ -153,11 +153,12 @@ def _example_main(input_file, output_file, **kwargs):
         subsampled_dset = _subsample_alignments(dset)
         dsets_kpis[f] = _getKPIs(dset, subsampled_dset)
 
-    figures = []
     # figure tuple has form (plot_group_id, plot_id, Plot Name, figure)
-    figures.append(('accuracy', 'accuracy_vs_readlength', "Accuracy vs ReadLength", accuracy_plots._plot_accuracy_vs_readlength(dsets_kpis)))
-    figures.append(('accuracy', 'accuracy', "Accuracy", accuracy_plots._plot_accuracy_distribution(dsets_kpis)))
-    figures.append(('accuracy', 'accuracy_boxplot', "Accuracy BoxPlot", accuracy_plots._plot_accuracy_boxplots(dsets_kpis)))
+    figures = [
+        ('accuracy', 'accuracy_vs_readlength', "Accuracy vs ReadLength", accuracy_plots._plot_accuracy_vs_readlength(dsets_kpis)),
+        ('accuracy', 'accuracy', "Accuracy", accuracy_plots._plot_accuracy_distribution(dsets_kpis)),
+        ('accuracy', 'accuracy_boxplot', "Accuracy BoxPlot", accuracy_plots._plot_accuracy_boxplots(dsets_kpis))
+    ]
 
     all_plots = {} # dictionary of plots. keys are groups
 
