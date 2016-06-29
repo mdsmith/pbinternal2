@@ -1,5 +1,11 @@
 pbcommand>=0.4.0
 pbcore>=1.2.10
+pbreports>=3.1.0
 # this needs to be re-evaluated
 plotly
 selenium
+# MK. Disabling this for now. This is used by pbinternal2.report.*
+#pbalign
+#matplotlib
+#scipy
+#pandas==0.16.2

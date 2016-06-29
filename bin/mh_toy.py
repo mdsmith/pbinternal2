@@ -52,7 +52,7 @@ from selenium import webdriver
 
 import accuracy_plots
 
-NAMESPACE = "pbsmrtpipe_examples"
+NAMESPACE = "pbinternal2"
 
 
 registry = registry_builder(NAMESPACE, "mh_toy.py")
