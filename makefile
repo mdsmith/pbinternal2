@@ -32,10 +32,13 @@ pip-install:
 	@pip install --no-index \
           --install-option="--install-scripts=$(PREFIX)/bin" ./
 
-emit-tcs:
+emit-tool-contracts:
 	mkdir -p tool-contracts
 	python ./bin/mh_toy.py emit-tool-contracts -o tool-contracts
 	python -m pbinternal2.analysis_tools emit-tool-contracts -o tool-contracts
+	python -m pbinternal2.pa_tasks emit-tool-contracts -o tool-contracts
+
+emit-tcs: emit-tool-contracts
 
 auto-pep8:
 	find bin -name "*.py" -exec autopep8 -i --ignore=E501,E265,E731,E402,W292 {} \;
