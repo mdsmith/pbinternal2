@@ -10,8 +10,10 @@ log = logging.getLogger(__name__)
 
 def subreadset_to_trace_file(sset_or_path):
     """
+    To enable running this task/pipeline from SMRT Link, all the entry points
+    must be DataSets.
 
-    Attempts to resolve the trace file from the SubreadSet.
+    Attempts to resolve the trace file from a SubreadSet.
 
     Note, this only works with non-merged SubreadSets.
 
@@ -33,10 +35,11 @@ def subreadset_to_trace_file(sset_or_path):
     else:
         raise TypeError("Expected path or SubreadSet")
 
-    fs = sset.toExternalFiles()
+    fs = [f for f in sset.toExternalFiles() if f.endswith(subread_bam_ext)]
+
     # not a merged dataset
-    assert fs[0].endswith(subread_bam_ext)
     assert len(fs) == 1
+
     # MK. In future version of Primary Analysis, the SubreadSet will be written
     # with an explicit path to the Trace file as an external Resource
     # within the SubreadSet.
