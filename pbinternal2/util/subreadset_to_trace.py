@@ -37,6 +37,9 @@ def subreadset_to_trace_file(sset_or_path):
     # not a merged dataset
     assert fs[0].endswith(subread_bam_ext)
     assert len(fs) == 1
+    # MK. In future version of Primary Analysis, the SubreadSet will be written
+    # with an explicit path to the Trace file as an external Resource
+    # within the SubreadSet.
     trace_file = fs[0].replace(subread_bam_ext, trace_ext)
     assert os.path.isfile(trace_file)
 
