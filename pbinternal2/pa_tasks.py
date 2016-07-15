@@ -16,6 +16,7 @@ from pbcommand.models import FileTypes, SymbolTypes
 from pbcore.io import SubreadSet
 
 from pbinternal2 import TOOL_NAMESPACE
+from pbinternal2.report.compare_subreadset import run_compare_subreadset_compare
 from pbinternal2.util.subreadset_to_trace import subreadset_to_trace_file
 
 __author__ = "Nat Echols"
@@ -258,12 +259,22 @@ def run_base_caller_from_subreadset(rtc):
     baz_output_file = rtc.task.output_files[0]
 
     base_caller_options = rtc.task.options[_get_id(Constants.BASECALLER_OPTIONS_ID)]
-    basecaller_exe=rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)]
+    basecaller_exe = rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)]
 
     return run_basecaller(trace_path, baz_output_file,
                           nproc=rtc.task.nproc,
                           basecaller_options=base_caller_options,
                           basecaller_exe=basecaller_exe)
+
+
+@registry("compare_subreadsets_report", "0.1.0",
+          (FileTypes.DS_SUBREADS, FileTypes.DS_SUBREADS), FileTypes.REPORT,
+          is_distributed=True, nproc=1)
+def run_compare_subreadsets(rtc):
+    """Compare Two SubreadSets. The first value is assumed to be the baseline"""
+    return run_compare_subreadset_compare(rtc.task.input_files[0],
+                                          rtc.task.input_files[1],
+                                          rtc.task.output_files[0])
 
 
 if __name__ == '__main__':
