@@ -1,12 +1,22 @@
 #!/usr/bin/env python
-import argparse
+
 import time
-import numpy as np
+import sys
 import logging
+import numpy as np
+from pbcommand.models.report import Report, Attribute, PlotGroup, Plot
+from pbcommand.cli import (pacbio_args_runner,
+                           get_default_argparser_with_base_opts)
+from pbcommand.utils import setup_log
 from functools import partial
 from multiprocessing import Pool
+from pbinternal2 import get_version
+
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
 from pbcore.io.dataset.utils import sampleHolesUniformly
+
+log = logging.getLogger(__name__)
+__version__ = get_version()
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -230,37 +240,55 @@ def sample_uniform(aset, num, faillimit=25):
     aset.filters.addRequirement(zm=[('in', hns)])
 
 def eol_qc_stats(sset, aset, zmwscsv, moviescsv, nholes):
+    eol_qc_movie_stats(sset, aset, moviescsv)
     sample_uniform(aset, nholes)
     if zmwscsv.endswith('.csv'):
         zmwscsv = zmwscsv[:-4]
     if moviescsv.endswith('.csv'):
         moviescsv = moviescsv[:-4]
-    eol_qc_movie_stats(sset, aset, moviescsv)
     eol_qc_zmw_stats(aset, zmwscsv)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('subreadset', type=SubreadSet)
-    parser.add_argument('alignmentset', type=AlignmentSet)
-    parser.add_argument('outprefix')
-    parser.add_argument('-n', '--first_n', type=int)
-    parser.add_argument('-r', '--rand_n', type=int)
-    parser.add_argument('-u', '--uniform_n', type=int)
-    parser.add_argument('-j', '--nproc', type=int, default=1)
-    parser.add_argument('--search', type=int, default=25,
-                        help=('Limit the number of hns to search for a '
-                              'local hit'))
-    args = parser.parse_args()
+def run(args):
     log.info("Starting movie analysis")
-    # run this first so that neither dataset is filtered, and so that the
-    # sts.xml isn't obliterated by adding a filter...
     eol_qc_movie_stats(args.subreadset, args.alignmentset, args.outprefix)
-    if args.first_n:
-        sample_first(args.alignmentset, args.first_n)
-    elif args.rand_n:
-        sample_random(args.alignmentset, args.rand_n)
-    elif args.uniform_n:
-        sample_uniform(args.alignmentset, args.uniform_n)
-
+    args.sampler(args.alignmentset, args.nreads)
     log.info("Starting zmw analysis")
     eol_qc_zmw_stats(args.alignmentset, args.outprefix)
+    return 0
+
+def get_parser():
+    sample_picker = {'first': sample_first,
+                     'random': sample_random,
+                     'uniform': sample_uniform}
+    p = get_default_argparser_with_base_opts(
+        version=__version__,
+        description=__doc__,
+        default_level="WARN")
+    p.add_argument('subreadset', type=SubreadSet,
+                   help="Input SubreadSet for an Internal BAM")
+    p.add_argument('alignmentset', type=AlignmentSet,
+                   help="Input AlignmentSet for the SubreadSet")
+    p.add_argument('outprefix', type=str,
+                   help="Output prefix for csvs")
+    p.add_argument('--nreads', type=int,
+                   help="The number of reads to process")
+    p.add_argument('--sampler', default='uniform',
+                   type=lambda x: sample_picker.get(x),
+                   choices=sample_picker.keys(),
+                   help="Read sampling mechanism")
+    p.add_argument('--search', type=int, default=25,
+                   help=('Limit the number of hns to search for a '
+                         'local hit'))
+    return p
+
+def main(argv=sys.argv):
+    return pacbio_args_runner(
+        argv=argv[1:],
+        parser=get_parser(),
+        args_runner_func=run,
+        alog=log,
+        setup_log_func=setup_log)
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+
