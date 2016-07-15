@@ -263,7 +263,7 @@ def run_base_caller_from_subreadset(rtc):
     return run_basecaller(trace_path, baz_output_file,
                           nproc=rtc.task.nproc,
                           basecaller_options=base_caller_options,
-                          basecaller_exe=basecaller_exe),
+                          basecaller_exe=basecaller_exe)
 
 
 if __name__ == '__main__':
