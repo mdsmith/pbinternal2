@@ -16,6 +16,8 @@ from pbcommand.models import FileTypes, SymbolTypes
 from pbcore.io import SubreadSet
 
 from pbinternal2 import TOOL_NAMESPACE
+from pbinternal2.report.compare_subreadset import run_compare_subreadset_compare
+from pbinternal2.util.subreadset_to_trace import subreadset_to_trace_file
 
 __author__ = "Nat Echols"
 
@@ -28,6 +30,10 @@ class Constants(object):
     BASECALLER_OPTIONS_ID = "basecaller_options"
     BASECALLER_EXE = "basecaller-console-app"
     BASECALLER_EXE_ID = "basecaller_exe"
+
+    BASE_CALLER_OPTIONS = {BASECALLER_EXE_ID: BASECALLER_EXE,
+                           BASECALLER_OPTIONS_ID: BASECALLER_OPTIONS}
+
     BAZ2BAM_EXE = "baz2bam"
     BAZ2BAM_EXE_ID = "baz2bam_exe"
     MIN_SUBREAD_LENGTH_ID = "min_subread_length"
@@ -168,10 +174,7 @@ def run_pbalign_unrolled(bam_file, reference, alignment_set,
           FileTypes.BAZ,
           is_distributed=True,
           nproc=SymbolTypes.MAX_NPROC,
-          options={
-              Constants.BASECALLER_EXE_ID: Constants.BASECALLER_EXE,
-              Constants.BASECALLER_OPTIONS_ID: Constants.BASECALLER_OPTIONS,
-          })
+          options=Constants.BASE_CALLER_OPTIONS)
 def task_basecaller(rtc):
     return run_basecaller(
         trc_file=rtc.task.input_files[0],
@@ -241,6 +244,37 @@ def task_pbalign_unrolled(rtc):
         alignment_set=rtc.task.output_files[0],
         nproc=rtc.task.nproc,
         blasr_options=rtc.task.options[_get_id(Constants.BLASR_OPTIONS_ID)])
+
+
+@registry("basecaller_from_subreadset",
+          "0.1.0",
+          FileTypes.DS_SUBREADS,
+          FileTypes.BAZ,
+          is_distributed=True, nproc=1, options=Constants.BASE_CALLER_OPTIONS)
+def run_base_caller_from_subreadset(rtc):
+    """Attempt to Resolve the Trace file from the SubreadSet, then call basecaller"""
+
+    subreadset_path = rtc.task.input_files[0]
+    trace_path = subreadset_to_trace_file(subreadset_path)
+    baz_output_file = rtc.task.output_files[0]
+
+    base_caller_options = rtc.task.options[_get_id(Constants.BASECALLER_OPTIONS_ID)]
+    basecaller_exe = rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)]
+
+    return run_basecaller(trace_path, baz_output_file,
+                          nproc=rtc.task.nproc,
+                          basecaller_options=base_caller_options,
+                          basecaller_exe=basecaller_exe)
+
+
+@registry("compare_subreadsets_report", "0.1.0",
+          (FileTypes.DS_SUBREADS, FileTypes.DS_SUBREADS), FileTypes.REPORT,
+          is_distributed=True, nproc=1)
+def run_compare_subreadsets(rtc):
+    """Compare Two SubreadSets. The first value is assumed to be the baseline"""
+    return run_compare_subreadset_compare(rtc.task.input_files[0],
+                                          rtc.task.input_files[1],
+                                          rtc.task.output_files[0])
 
 
 if __name__ == '__main__':
