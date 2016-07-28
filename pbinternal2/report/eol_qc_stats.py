@@ -2,82 +2,62 @@
 
 import time
 import sys
+import os
 import logging
 import numpy as np
+import glob
 from pbcommand.models.report import Report, Attribute, PlotGroup, Plot
 from pbcommand.cli import (pacbio_args_runner,
                            get_default_argparser_with_base_opts)
 from pbcommand.utils import setup_log
-from functools import partial
 from multiprocessing import Pool
-from pbinternal2 import get_version
 
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
 from pbcore.io.dataset.utils import sampleHolesUniformly
 
+from pbinternal2 import get_version
+
 log = logging.getLogger(__name__)
 __version__ = get_version()
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+# ZMW CSV:
 
-# READ ACCUMULATORS:
-
-def holenumber(read):
-    return read.holeNumber
-
-def moviename(read):
-    return read.movieName
-
-def concordance(read):
-    return read.identity
-
-def alnlen(read):
-    return read.nM + read.nMM + read.nDel + read.nIns
-
-def readspan(read):
-    return read.aEnd - read.aStart
-
-def refspan(read):
-    return read.tEnd - read.tStart
-
-def snrA(read):
-    return read.hqRegionSnr[0]
-
-def snrC(read):
-    return read.hqRegionSnr[1]
-
-def snrG(read):
-    return read.hqRegionSnr[2]
-
-def snrT(read):
-    return read.hqRegionSnr[3]
-
-def getter(attrib, x):
-    return getattr(x, attrib)
-
-def Get(key):
-    func = partial(getter, key)
-    func.__name__ = key
-    return func
+def Get(key, altName=None, transform=(lambda x: x)):
+    def getter(x):
+        return transform(getattr(x, key))
+    if altName is None:
+        altName = key
+    getter.__name__ = altName
+    return getter
 
 def getPkmid(read):
-    return np.array(read.peer.opt('pm'), dtype=np.int)
+    try:
+        return np.array(read.peer.opt('pm'), dtype=np.int)
+    except KeyError:
+        raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
 
 def getPulseLabels(read):
-    return np.array(list(read.peer.opt('pc')), dtype='S1')
+    try:
+        return np.array(list(read.peer.opt('pc')), dtype='S1')
+    except KeyError:
+        raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
+
+def pkmid_mean(read):
+    return np.mean(read.get('pms', getPkmid))
+
+def pkmid_channel_mean(channel):
+    def midmean(read):
+        pms = read.get('pms', getPkmid)
+        pls = read.get('pls', getPulseLabels)
+        return np.mean(pms[pls == channel])
+    midmean.__name__ = 'pkmid_{c}_mean'.format(c=channel)
+    return midmean
 
 class ReadShare(object):
 
-    sharedstate = {}
-
     def __init__(self, read):
-        # it will either be None if not yet populated, or perhaps populated by
-        # a different read
-        if not self.sharedstate.get('read') is read:
-            self.sharedstate = {}
-            self.sharedstate['read'] = read
+        self.sharedstate = {}
+        self.sharedstate['read'] = read
 
     def get(self, key, get_func=None):
         res = self.sharedstate.get(key)
@@ -89,46 +69,16 @@ class ReadShare(object):
     def __getattr__(self, key):
         return getattr(self.sharedstate['read'], key)
 
-def pkmid_mean(read):
-    return np.mean(read.get('pms', getPkmid))
-
-def pkmid_channel_mean(channel):
-    def midmean(read):
-        pms = read.get('pms', getPkmid)
-        pls = read.get('pls', getPulseLabels)
-        assert len(pms) == len(pls)
-        return np.mean(pms[pls == channel])
-    midmean.__name__ = 'pkmid_{c}_mean'.format(c=channel)
-    return midmean
-
-# MOVIE ACCUMULATORS
-
-def movienames(sset, aset):
-    return sset.readGroupTable.MovieName
-
-
-def write_csv(fname, header, csv):
-    with open(fname, 'w') as fh:
-        fh.write(','.join(header))
-        fh.write('\n')
-        for row in csv:
-            fh.write(','.join(map(str, row)))
-            fh.write('\n')
-
-def process_read(accs, read):
-    row = []
-    for fun in accs:
-        row.append(fun(read))
-    return row
-
 def eol_qc_zmw_stats(aset, outcsv, nproc=1):
     start = time.clock()
-    acc = [moviename, holenumber, Get('qStart'), Get('qEnd'), concordance,
-           snrA, snrC, snrG, snrT, pkmid_mean,
-           pkmid_channel_mean('A'),
-           pkmid_channel_mean('C'),
-           pkmid_channel_mean('G'),
-           pkmid_channel_mean('T'),
+    acc = [Get('movieName', 'moviename'), Get('holeNumber', 'holenumber'),
+           Get('qStart'), Get('qEnd'), Get('identity', 'concordance'),
+           Get('hqRegionSnr', 'snrA', lambda x: x[0]),
+           Get('hqRegionSnr', 'snrC', lambda x: x[1]),
+           Get('hqRegionSnr', 'snrG', lambda x: x[2]),
+           Get('hqRegionSnr', 'snrT', lambda x: x[3]),
+           pkmid_mean, pkmid_channel_mean('A'), pkmid_channel_mean('C'),
+           pkmid_channel_mean('G'), pkmid_channel_mean('T'),
           ]
     csv = []
     for read in aset:
@@ -138,9 +88,10 @@ def eol_qc_zmw_stats(aset, outcsv, nproc=1):
             row.append(fun(sread))
         csv.append(row)
     log.info("ZMW info processing time: {:}".format(time.clock() - start))
-    write_csv('.'.join([outcsv, 'zmws', 'csv']),
-              [a.__name__ for a in acc], csv)
+    write_csv(outcsv, [a.__name__ for a in acc], csv)
     return 0
+
+# MOVIE CSV:
 
 def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
     csv = []
@@ -153,6 +104,20 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'nsubreads_mapped',
               'polrl_mean',
               'polrl_std',
+              'substrate_id',
+              'substrate_barcode',
+              'substrate_lot_number',
+              'coupler_laser_power',
+              'templateprepkit_barcode',
+              'templateprepkit_lot_number',
+              'bindingkit_barcode',
+              'bindingkit_lot_number',
+              'sequencingkitplate_barcode',
+              'sequencingkitplate_lot_number',
+              'movie_length',
+              'insert_len_mean',
+              'insert_len_std',
+              'movie_index_in_cell',
               'pd_Empty', 'pd_Productive', 'pd_Other', 'pd_Undefined',
               'BaselineLevelMean_A',
               'BaselineLevelMean_C',
@@ -167,7 +132,25 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'HqBasPkMidMean_G',
               'HqBasPkMidMean_C',
               ]
+    # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
+    # sts.xml accessor
     for movieName, movie in sset.movieIds.items():
+
+        # Super sketchy: movie number in cell isn't in the metadata. You have
+        # Collection Number and CellIndex, but not how many movies there are in
+        # a cell...
+        try:
+            cellpath = os.path.dirname(sset.toExternalFiles()[0])
+            cellcode = cellpath.split('/')[-1]
+            runpath = '/'.join(cellpath.split('/')[:-1])
+            cellname = cellcode.split('_')[-1]
+            pattern = os.path.join(runpath, '_'.join(['*', cellname]))
+            moviesincell = glob.glob(pattern)
+            movieincell = moviesincell.index(cellpath)
+        except ValueError:
+            # VAlueError: the path isn't as expected, fname not in list
+            movieincell = -1
+
         row = []
         row.append(movieName)
         # concordance
@@ -186,6 +169,32 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.summaryStats.readLenDist.sampleMean)
         # polrl stdev
         row.append(sset.metadata.summaryStats.readLenDist.sampleStd)
+        # substrate id
+        row.append(sset.metadata.collections[0].cellPac.barcode[:8])
+        # substrate barcode
+        row.append(sset.metadata.collections[0].cellPac.barcode)
+        # substrate barcode
+        row.append(sset.metadata.collections[0].cellPac.lotNumber)
+        # coupler laser power
+        row.append(sset.metadata.collections[
+            0].automation.automationParameters['CouplerLaserPower'].value)
+        # templateprepkit barcode
+        row.append(sset.metadata.collections[0].templatePrepKit.barcode)
+        # templateprepkit barcode
+        row.append(sset.metadata.collections[0].templatePrepKit.lotNumber)
+        # bindingkit barcode
+        row.append(sset.metadata.collections[0].bindingKit.barcode)
+        # bindingkit barcode
+        row.append(sset.metadata.collections[0].bindingKit.lotNumber)
+        row.append(sset.metadata.collections[0].sequencingKitPlate.barcode)
+        row.append(sset.metadata.collections[0].sequencingKitPlate.lotNumber)
+        # movie length (minutes)
+        row.append(sset.metadata.collections[
+            0].automation.automationParameters['MovieLength'].value)
+        # insert len
+        row.append(sset.metadata.summaryStats.insertReadLenDist.sampleMean)
+        row.append(sset.metadata.summaryStats.insertReadLenDist.sampleStd)
+        row.append(movieincell)
         # totalloading
         row.extend(sset.metadata.summaryStats.prodDist.bins)
         # baselineleveldist
@@ -217,9 +226,18 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
             'HqBasPkMidDist']['T'][0].sampleMean)
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
-    write_csv('.'.join([outcsv, 'movies', 'csv']),
-              header, csv)
+    write_csv(outcsv, header, csv)
     return 0
+
+def write_csv(fname, header, csv):
+    print fname
+    log.info("Writing {:}".format(fname))
+    with open(fname, 'w') as fh:
+        fh.write(','.join(header))
+        fh.write('\n')
+        for row in csv:
+            fh.write(','.join(map(str, row)))
+            fh.write('\n')
 
 def sample_first(aset, num):
     hn = np.unique(aset.index.holeNumber)[num]
@@ -240,20 +258,28 @@ def sample_uniform(aset, num, faillimit=25):
     aset.filters.addRequirement(zm=[('in', hns)])
 
 def eol_qc_stats(sset, aset, zmwscsv, moviescsv, nholes):
+    sset = SubreadSet(sset)
+    aset = AlignmentSet(aset)
+    try:
+        sset[0].peer.opt('pm')
+    except KeyError:
+        raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
     eol_qc_movie_stats(sset, aset, moviescsv)
     sample_uniform(aset, nholes)
-    if zmwscsv.endswith('.csv'):
-        zmwscsv = zmwscsv[:-4]
-    if moviescsv.endswith('.csv'):
-        moviescsv = moviescsv[:-4]
     eol_qc_zmw_stats(aset, zmwscsv)
+    return 0
 
 def run(args):
+    # open files so that isn't counted towards the movie analysis
+    args.subreadset.index
+    args.alignmentset.index
     log.info("Starting movie analysis")
-    eol_qc_movie_stats(args.subreadset, args.alignmentset, args.outprefix)
+    eol_qc_movie_stats(args.subreadset, args.alignmentset,
+                       '.'.join([args.outprefix, 'movies', 'csv']))
     args.sampler(args.alignmentset, args.nreads)
     log.info("Starting zmw analysis")
-    eol_qc_zmw_stats(args.alignmentset, args.outprefix)
+    eol_qc_zmw_stats(args.alignmentset,
+                     '.'.join([args.outprefix, 'zmws', 'csv']))
     return 0
 
 def get_parser():

@@ -1,6 +1,7 @@
 pbcommand>=0.4.0
 pbcore>=1.2.10
 pbreports>=3.1.0
+pbtestdata>=0.0.12
 # this needs to be re-evaluated
 plotly
 selenium
