@@ -16,7 +16,7 @@ class TestEolQcReport(pbcommand.testkit.PbTestApp):
     ASET = pbtestdata.get_file('aligned-internal-subreads')
     DRIVER_BASE = "python -m pbinternal2.tasks.eol_qc "
     DRIVER_EMIT = (DRIVER_BASE +
-                   " emit-tool-contract pbsmrtpipe_internal.tasks.eol_qc")
+                   " emit-tool-contract pbinternal2.tasks.eol_qc")
     DRIVER_RESOLVE = DRIVER_BASE + " run-rtc "
     REQUIRES_PBCORE = True
     INPUT_FILES = [SSET, ASET]
