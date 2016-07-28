@@ -78,12 +78,23 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
                 nproc=1,
                 min_subread_length=Constants.MIN_SUBREAD_LENGTH,
                 baz2bam_exe=Constants.BAZ2BAM_EXE,
-                stdout=sys.stdout, stderr=sys.stderr):
+                stdout=sys.stdout, stderr=sys.stderr,
+                dataset_name_suffix=None):
     """
     Convert the .baz file from the basecaller to a SubreadSet.
+
+    Note, the emitted SubreadSet will have a new UUID
+
+    :param output_file: Base prefix for output files
+
+    :param dataset_name_suffix: Will update the dataset name with the supplied suffix
+    :type dataset_name_suffix: str | None
     """
+
     assert output_file.endswith(".subreadset.xml")
     output_base = re.sub(".subreadset.xml", "", output_file)
+    output_dir = op.dirname(output_file)
+
     args = [
         baz2bam_exe,
         baz_file,
@@ -105,8 +116,22 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
     subreadset_file = output_base + ".subreadset.xml"
     assert op.isfile(subreadset_file)
     tmp_ds = tempfile.NamedTemporaryFile(suffix=".subreadset.xml").name
+
+    # Must copy the adapters file to new SubreadSet output dir
+    # otherwise, the file will be invalid
+    new_adapters = op.join(output_dir, op.basename(adapter_fa))
+    shutil.copy(adapter_fa, new_adapters)
+
+    # FIXME, This should really update the PA version (SigProcVer) or at a minimum,
+    # augment the version
+
     with SubreadSet(subreadset_file) as ds:
         ds.makePathsAbsolute()
+        if dataset_name_suffix is not None:
+            name = ds.name
+            new_ds_name = "_".join([name, dataset_name_suffix])
+            ds.name = new_ds_name
+        ds.newUuid(setter=True)
         ds.write(tmp_ds)
     shutil.move(tmp_ds, subreadset_file)
     return 0
@@ -250,7 +275,10 @@ def task_pbalign_unrolled(rtc):
           "0.1.0",
           FileTypes.DS_SUBREADS,
           FileTypes.BAZ,
-          is_distributed=True, nproc=1, options=Constants.BASE_CALLER_OPTIONS)
+          is_distributed=True,
+          nproc=1,
+          options=Constants.BASE_CALLER_OPTIONS,
+          name="SubreadSet/Trace Refarm")
 def run_base_caller_from_subreadset(rtc):
     """Attempt to Resolve the Trace file from the SubreadSet, then call basecaller"""
 
@@ -267,9 +295,41 @@ def run_base_caller_from_subreadset(rtc):
                           basecaller_exe=basecaller_exe)
 
 
+@registry("baz2subreadset", "0.1.0",
+          (FileTypes.DS_SUBREADS, FileTypes.BAZ),
+          (FileTypes.DS_SUBREADS, ),
+          is_distributed=True, name="Baz To SubreadSet")
+def run_baz2subreadset(rtc):
+    """Convert the Baz File to a SubreadSet.
+    The Output is the Refarmed SubreadSet with a new UUID and the name
+    will have a suffix of "refarmed"
+
+    inputs: (Original SubreadSet, Input Baz)
+    outputs: (Output SubreadSet, )
+    """
+
+    original_subreadset = rtc.task.input_files[0]
+    baz = rtc.task.input_files[1]
+    output_subreadset = rtc.task.output_files[0]
+
+    nproc = rtc.task.nproc
+
+    # Crude resolving model
+    def fx(ext):
+        return original_subreadset.replace(".subreadset.xml", ext)
+
+    adapters_fasta = fx(".adapters.fasta")
+    run_metadata_xml = fx(".run.metadata.xml")
+
+    return run_baz2bam(baz, adapters_fasta, run_metadata_xml,
+                       output_subreadset,
+                       nproc=nproc,
+                       dataset_name_suffix="refarmed")
+
+
 @registry("compare_subreadsets_report", "0.1.0",
           (FileTypes.DS_SUBREADS, FileTypes.DS_SUBREADS), FileTypes.REPORT,
-          is_distributed=True, nproc=1)
+          is_distributed=True, nproc=1, name="SubreadSet Compare")
 def run_compare_subreadsets(rtc):
     """Compare Two SubreadSets. The first value is assumed to be the baseline"""
     return run_compare_subreadset_compare(rtc.task.input_files[0],
