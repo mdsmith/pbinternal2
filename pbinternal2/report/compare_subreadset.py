@@ -11,6 +11,8 @@ from pbcommand.models.report import Report, Attribute
 
 log = logging.getLogger(__name__)
 
+__version__ = "0.1.0"
+
 
 def compare_subreadset_to_report(subreadset_a_path, subreadset_b_path):
     """Subreadset A is assumed to be the baseline value
@@ -22,16 +24,30 @@ def compare_subreadset_to_report(subreadset_a_path, subreadset_b_path):
     """
     # MK. Adding the scaffolding to get the pipeline implemented
 
+    report_id = "subreadset_compare"
+    report_title = "SubreadSet Comparison"
+
     a = SubreadSet(subreadset_a_path)
     b = SubreadSet(subreadset_b_path)
+
+    delta_nrecords = b.numRecords - a.numRecords
+    delta_nlength = b.totalLength - a.totalLength
+    dataset_uuids = [a.uuid, b.uuid]
 
     log.info("SubreadSet A {}".format(a))
     log.info("SubreadSet B {}".format(b))
 
-    mock_attribute = Attribute("test", "Not Implemented Yet")
+    attrs = [
+        ("compare_version", __version__, "SubreadSet Compare Version"),
+        ("delta_nrecords", delta_nrecords, "Delta NumRecords (B - A)"),
+        ("delta_ntotal_length", delta_nlength, "Delta TotalLength (B -A)")
+    ]
 
-    r = Report("subreadset_compare", "SubreadSet Comparison",
-               attributes=[mock_attribute])
+    attributes = [Attribute(i, v, name=n) for i, v, n in attrs]
+
+    r = Report(report_id, report_title,
+               attributes=attributes,
+               dataset_uuids=dataset_uuids)
 
     log.info("Report {}".format(r))
     return r
