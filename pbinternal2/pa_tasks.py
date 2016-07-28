@@ -295,7 +295,7 @@ def run_base_caller_from_subreadset(rtc):
                           basecaller_exe=basecaller_exe)
 
 
-@registry("baz2subreadset", "0.1.0",
+@registry("baz2subreadset", "0.2.0",
           (FileTypes.DS_SUBREADS, FileTypes.BAZ),
           (FileTypes.DS_SUBREADS, ),
           is_distributed=True, name="Baz To SubreadSet")
@@ -327,7 +327,7 @@ def run_baz2subreadset(rtc):
                        dataset_name_suffix="refarmed")
 
 
-@registry("compare_subreadsets_report", "0.1.0",
+@registry("compare_subreadsets_report", "0.2.0",
           (FileTypes.DS_SUBREADS, FileTypes.DS_SUBREADS), FileTypes.REPORT,
           is_distributed=True, nproc=1, name="SubreadSet Compare")
 def run_compare_subreadsets(rtc):
