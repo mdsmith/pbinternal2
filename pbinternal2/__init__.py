@@ -1,7 +1,8 @@
-VERSION = (3, 0, 1)
+VERSION = (3, 0, 2)
 
 
 TOOL_NAMESPACE = "pbinternal2"
+
 
 def get_version():
     """Return the version as a string. "0.7"
