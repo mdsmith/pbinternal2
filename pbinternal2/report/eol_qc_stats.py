@@ -13,7 +13,8 @@ from pbcommand.utils import setup_log
 from multiprocessing import Pool
 
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
-from pbcore.io.dataset.utils import sampleHolesUniformly
+from pbcore.io.dataset.utils import (sampleHolesUniformly, quadratic_expand,
+                                     xy_to_hn, hn_to_xy)
 
 from pbinternal2 import get_version
 
@@ -93,6 +94,94 @@ def eol_qc_zmw_stats(aset, outcsv, nproc=1):
 
 # MOVIE CSV:
 
+def segment(dims=(10, 8)):
+    """Return a list of ndarrays of holenumbers corresponding to 2D blocks of
+    zmws of the specified size
+
+    Args:
+        dims: tuple of integer dimensions of blocks, cols x rows
+    Returns:
+        list of ndarrays of holenumbers
+    """
+    rowstart = 64
+    rowend = 1024
+    colstart = 64
+    colend = 1144
+
+    segments = []
+    for rul in range(rowstart, rowend, dims[1]):
+        for cul in range(colstart, colend, dims[0]):
+            block = []
+            for r in range(rul, rul + dims[1]):
+                for c in range(cul, cul + dims[0]):
+                    if c <= colend and r <= rowend:
+                        hn = xy_to_hn(c, r)
+                        block.append(hn)
+            segments.append(np.array(block))
+    return segments
+
+
+def count_aligns(aset, hns):
+    """
+    Args:
+        aset: the AlignmentSet
+        hns: a list of ndarrays of holenumbers
+    Returns:
+        A list of counts of holenumbers within each block that contain one or
+        more alignments
+    """
+    hits = set(aset.index.holeNumber)
+    alignments = []
+    for block in hns:
+        alignments.append(sum(1 if hn in hits else 0 for hn in block))
+    return np.array(alignments)
+
+
+def blocked_loading(aset, dims=(10, 8)):
+    chunks = segment(dims=dims)
+    z = count_aligns(aset, chunks)
+    return z, dims
+
+def loading_efficiency(aset):
+    # this was taken from the R code:
+    # but there is currently a small discrepancy
+    # getLoadingEfficiency = function( z, N )
+    # {
+    #   pol_pM = z / (N[0] * n[1])
+    #   maxConc = floor( 3 / min( pol_pM[ pol_pM > 0 ] ) )
+    #   conc = seq( 1, maxConc, 1 )
+    #   lambda = pol_pM %o% conc
+    #   single = lambda * exp( -lambda )
+    #   total = colMeans( single )  # assume uniform
+    #   100 * max( total, na.rm = TRUE ) * exp(1)
+    # }
+
+    z, N = blocked_loading(aset)
+    pol_pm = np.true_divide(z, np.product(N))
+    maxConc = int(np.true_divide(3, min(pol_pm[pol_pm > 0])))
+    conc = range(1, maxConc + 1)
+    lambdaVal = np.outer(pol_pm, conc)
+    single = lambdaVal * np.exp(-1.0 * lambdaVal)
+    total = np.mean(single, axis=0)
+    penalty = 100.0 * np.nanmax(total) * np.exp(1.0)
+
+    # debugging output
+    #print np.histogram(z, bins=range(24))
+    #y = z[z >= 1]
+    #print sum(y)
+    #print 1.0 - np.true_divide(len(y), len(z))
+    #print np.mean(y)
+    #print np.var(y)
+    #dispersion = np.var(y)/np.mean(y) - 1.0
+    #print dispersion
+    #print lambdaVal
+    #print single
+    #print total
+    #print np.nanmax(total)
+    #print penalty
+
+    return penalty
+
 def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
     csv = []
     start = time.clock()
@@ -118,6 +207,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'insert_len_mean',
               'insert_len_std',
               'movie_index_in_cell',
+              'loading_uniformity',
               'pd_Empty', 'pd_Productive', 'pd_Other', 'pd_Undefined',
               'BaselineLevelMean_A',
               'BaselineLevelMean_C',
@@ -195,6 +285,8 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.summaryStats.insertReadLenDist.sampleMean)
         row.append(sset.metadata.summaryStats.insertReadLenDist.sampleStd)
         row.append(movieincell)
+        # loading uniformity:
+        row.append(loading_efficiency(aset))
         # totalloading
         row.extend(sset.metadata.summaryStats.prodDist.bins)
         # baselineleveldist
