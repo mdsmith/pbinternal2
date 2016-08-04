@@ -21,6 +21,9 @@ from pbinternal2.util.subreadset_to_trace import subreadset_to_trace_file
 
 __author__ = "Nat Echols"
 
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler()) # To avoid warning messages
+
 
 class Constants(object):
 
@@ -72,6 +75,30 @@ def run_basecaller(trc_file, baz_file,
     result = run_cmd(' '.join(args), stdout_fh=stdout, stderr_fh=stderr)
     assert op.isfile(baz_file)
     return result.exit_code
+
+
+def _adapters_to_str(left, right):
+    # This is similar to how Paws works. Paws will call toUppercase for
+    # reasons that are unclear to me. Not doing that here.
+    if left == right:
+        return ">LeftAdapter\n{}".format(left)
+    else:
+        return ">LeftAdapter\n{l}\n>RightAdapter\n{r}".format(l=left, r=right)
+
+
+def write_adapters(left, right, output_file):
+    with open(output_file, 'w') as out:
+        out.write(_adapters_to_str(left, right))
+    return output_file
+
+
+def write_adapters_from_subreadset(subreadset_path, output_file):
+    with SubreadSet(subreadset_path) as ds:
+        right = ds.metadata.collections[0].templatePrepKit.rightAdaptorSequence
+        left = ds.metadata.collections[0].templatePrepKit.leftAdaptorSequence
+        write_adapters(left, right, output_file)
+    log.info("wrote adapters to {}".format(output_file))
+
 
 
 def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
@@ -133,6 +160,8 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
             ds.name = new_ds_name
         ds.newUuid(setter=True)
         ds.write(tmp_ds)
+        log.info("Wrote new SubreadSet {u} to {p}".format(u=ds.uuid, p=subreads_file))
+
     shutil.move(tmp_ds, subreadset_file)
     return 0
 
@@ -295,7 +324,7 @@ def run_base_caller_from_subreadset(rtc):
                           basecaller_exe=basecaller_exe)
 
 
-@registry("baz2subreadset", "0.2.0",
+@registry("baz2subreadset", "0.2.1",
           (FileTypes.DS_SUBREADS, FileTypes.BAZ),
           (FileTypes.DS_SUBREADS, ),
           is_distributed=True, name="Baz To SubreadSet")
@@ -312,6 +341,8 @@ def run_baz2subreadset(rtc):
     baz = rtc.task.input_files[1]
     output_subreadset = rtc.task.output_files[0]
 
+    output_dir = op.dirname(output_subreadset)
+
     nproc = rtc.task.nproc
 
     # Crude resolving model
@@ -320,6 +351,12 @@ def run_baz2subreadset(rtc):
 
     adapters_fasta = fx(".adapters.fasta")
     run_metadata_xml = fx(".run.metadata.xml")
+
+    # If the adapters file isn't present (i.e., it wasn't transferred off
+    # the Inst), then write the adapter file to the new output dir
+    if not op.exists(adapters_fasta):
+        adapters_fasta = op.join(output_dir, op.basename(adapters_fasta))
+        write_adapters_from_subreadset(original_subreadset, adapters_fasta)
 
     return run_baz2bam(baz, adapters_fasta, run_metadata_xml,
                        output_subreadset,
