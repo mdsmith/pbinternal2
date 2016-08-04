@@ -100,7 +100,6 @@ def write_adapters_from_subreadset(subreadset_path, output_file):
     log.info("wrote adapters to {}".format(output_file))
 
 
-
 def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
                 nproc=1,
                 min_subread_length=Constants.MIN_SUBREAD_LENGTH,
@@ -147,7 +146,8 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
     # Must copy the adapters file to new SubreadSet output dir
     # otherwise, the file will be invalid
     new_adapters = op.join(output_dir, op.basename(adapter_fa))
-    shutil.copy(adapter_fa, new_adapters)
+    if not op.exists(new_adapters):
+        shutil.copy(adapter_fa, new_adapters)
 
     # FIXME, This should really update the PA version (SigProcVer) or at a minimum,
     # augment the version
