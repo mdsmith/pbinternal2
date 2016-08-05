@@ -214,17 +214,17 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'BaselineLevelMean_G',
               'BaselineLevelMean_T',
               'BaselineLevelStdMean_A',
-              'BaselineLevelStdMean_T',
-              'BaselineLevelStdMean_G',
               'BaselineLevelStdMean_C',
+              'BaselineLevelStdMean_G',
+              'BaselineLevelStdMean_T',
               'HqBasPkMidMean_A',
-              'HqBasPkMidMean_T',
-              'HqBasPkMidMean_G',
               'HqBasPkMidMean_C',
+              'HqBasPkMidMean_G',
+              'HqBasPkMidMean_T',
               'SnrDist_A',
-              'SnrDist_T',
-              'SnrDist_G',
               'SnrDist_C',
+              'SnrDist_G',
+              'SnrDist_T',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
