@@ -35,9 +35,7 @@ class TestEOLQCStats(BaseTestCase):
         try:
             BaseTestCase.tearDown(self)
         except Exception as err:
-            log.error(err)
-            tb = traceback.format_exc()
-            log.error(tb)
+            log.exception("EOLQCStats setUp failed.")
             raise
 
 
