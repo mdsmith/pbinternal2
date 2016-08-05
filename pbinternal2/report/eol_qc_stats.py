@@ -221,6 +221,10 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'HqBasPkMidMean_T',
               'HqBasPkMidMean_G',
               'HqBasPkMidMean_C',
+              'SnrDist_A',
+              'SnrDist_T',
+              'SnrDist_G',
+              'SnrDist_C',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -316,6 +320,15 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
             'HqBasPkMidDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
             'HqBasPkMidDist']['T'][0].sampleMean)
+        # SNR
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['A'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['C'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['G'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['T'][0].sampleMean)
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
     write_csv(outcsv, header, csv)
