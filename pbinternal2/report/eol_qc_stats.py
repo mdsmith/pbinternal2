@@ -214,13 +214,17 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'BaselineLevelMean_G',
               'BaselineLevelMean_T',
               'BaselineLevelStdMean_A',
-              'BaselineLevelStdMean_T',
-              'BaselineLevelStdMean_G',
               'BaselineLevelStdMean_C',
+              'BaselineLevelStdMean_G',
+              'BaselineLevelStdMean_T',
               'HqBasPkMidMean_A',
-              'HqBasPkMidMean_T',
-              'HqBasPkMidMean_G',
               'HqBasPkMidMean_C',
+              'HqBasPkMidMean_G',
+              'HqBasPkMidMean_T',
+              'SnrDist_A',
+              'SnrDist_C',
+              'SnrDist_G',
+              'SnrDist_T',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -316,6 +320,15 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
             'HqBasPkMidDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
             'HqBasPkMidDist']['T'][0].sampleMean)
+        # SNR
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['A'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['C'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['G'][0].sampleMean)
+        row.append(sset.metadata.summaryStats.channelDists[
+            'SnrDist']['T'][0].sampleMean)
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
     write_csv(outcsv, header, csv)
