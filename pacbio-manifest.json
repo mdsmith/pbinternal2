@@ -1,0 +1,10 @@
+[
+  {
+    "id": "pbinternal2",
+    "name": "pbinternal2",
+    "_comment": "Need to update this to load the short-sha1 format of the first 7 chars, e.g., 'ce635e6'",
+    "version": "3.0.2-FIXME",
+    "description": "Python Internal Analysis library and tools ",
+    "dependencies": [ "pbcommand", "pbcore", "pbreports"]
+  }
+]
