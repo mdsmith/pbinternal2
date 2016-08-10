@@ -7,7 +7,7 @@ from pbcommand.cli import registry_builder, registry_runner
 from pbinternal2.report.eol_qc_stats import eol_qc_stats
 from pbinternal2 import TOOL_NAMESPACE
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Martin Smith"
 
 log = logging.getLogger(__name__)
