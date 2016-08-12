@@ -71,10 +71,12 @@ def run_basecaller(trc_file, baz_file,
     # FIXME(mpkocher)(2016-8-11) This should be configured via task option
     # to source a specific version of the base caller console app GNU module
     # this is a mess. run_cmd should default to /bin/bash, otherwise you'll
-    # get a /bin/sh: 1: source: not found error
+    # get a /bin/sh: 1: source: not found error. Even
     exe = " && ".join(["/bin/bash", Constants.GNU_MODULE_INIT,
                        Constants.GNU_MODULE_BASE_CALLER,
                        basecaller_exe])
+
+    exe = "base-caller-wrapper.sh"
 
     args = [
         exe,
