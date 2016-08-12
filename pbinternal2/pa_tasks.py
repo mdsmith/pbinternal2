@@ -29,6 +29,10 @@ class Constants(object):
 
     DRIVER_BASE = "python -m pbinternal2.pa_tasks "
 
+    GNU_MODULE_INIT = "source /mnt/software/Modules/current/init/bash"
+
+    GNU_MODULE_BASE_CALLER = "module load basecaller/3.2.0"
+
     BASECALLER_OPTIONS = "--internal --method=TA_DME_FFHmm_P2B"
     BASECALLER_OPTIONS_ID = "basecaller_options"
     BASECALLER_EXE = "basecaller-console-app"
@@ -63,17 +67,30 @@ def run_basecaller(trc_file, baz_file,
     """
     Run the offline basecaller on a trace file.
     """
+
+    # FIXME(mpkocher)(2016-8-11) This should be configured via task option
+    # to source a specific version of the base caller console app GNU module
+    exe = " && ".join([Constants.GNU_MODULE_INIT,
+                       Constants.GNU_MODULE_BASE_CALLER,
+                       basecaller_exe])
+
     args = [
-        basecaller_exe,
+        exe,
         "--inputfile={i}".format(i=trc_file),
         "--outputbazfile={o}".format(o=baz_file),
         "--numthreads={n}".format(n=nproc),
     ]
     if basecaller_options != "":
         args.extend(basecaller_options.split(' '))
-    logging.info(' '.join(args))
+
+    logging.info("Command " + ' '.join(args))
+
     result = run_cmd(' '.join(args), stdout_fh=stdout, stderr_fh=stderr)
-    assert op.isfile(baz_file)
+
+    if not op.isfile(baz_file):
+        stderr.write("Result {}".format(result))
+        stderr.write("Unable to produce Baz file from command: {a}\n".format(a=args))
+
     return result.exit_code
 
 
