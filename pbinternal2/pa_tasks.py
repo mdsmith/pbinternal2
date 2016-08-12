@@ -41,6 +41,9 @@ class Constants(object):
     BASE_CALLER_OPTIONS = {BASECALLER_EXE_ID: BASECALLER_EXE,
                            BASECALLER_OPTIONS_ID: BASECALLER_OPTIONS}
 
+    # FIXME. See comments on the base-caller
+    BAZ2BAM_WRAPPER = "baz2bam-wrapper.sh"
+
     BAZ2BAM_EXE = "baz2bam"
     BAZ2BAM_EXE_ID = "baz2bam_exe"
     MIN_SUBREAD_LENGTH_ID = "min_subread_length"
@@ -142,8 +145,10 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
     output_base = re.sub(".subreadset.xml", "", output_file)
     output_dir = op.dirname(output_file)
 
+    # FIXME (See base-caller wrapper for comments
+    exe = Constants.BAZ2BAM_WRAPPER
     args = [
-        baz2bam_exe,
+        exe,
         baz_file,
         "--silent",
         "--minSubLength", str(min_subread_length),
