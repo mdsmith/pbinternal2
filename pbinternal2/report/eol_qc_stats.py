@@ -6,11 +6,9 @@ import os
 import logging
 import numpy as np
 import glob
-from pbcommand.models.report import Report, Attribute, PlotGroup, Plot
 from pbcommand.cli import (pacbio_args_runner,
                            get_default_argparser_with_base_opts)
 from pbcommand.utils import setup_log
-from multiprocessing import Pool
 
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
 from pbcore.io.dataset.utils import (sampleHolesUniformly, quadratic_expand,
