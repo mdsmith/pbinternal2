@@ -29,6 +29,13 @@ def Get(key, altName=None, transform=(lambda x: x)):
     getter.__name__ = altName
     return getter
 
+def Todo(key):
+    """Values that need to be calculated. See ITG-85"""
+    def getter(x):
+        return ''
+    getter.__name__ = key
+    return getter
+
 def getPkmid(read):
     try:
         return np.array(read.peer.opt('pm'), dtype=np.int)
@@ -70,14 +77,30 @@ class ReadShare(object):
 
 def eol_qc_zmw_stats(aset, outcsv, nproc=1):
     start = time.clock()
-    acc = [Get('movieName', 'moviename'), Get('holeNumber', 'holenumber'),
-           Get('qStart'), Get('qEnd'), Get('identity', 'concordance'),
+    # Order comes from Remy's list in ITG-85
+    acc = [Get('movieName', 'moviename'),
+           Get('holeNumber', 'holenumber'),
+           Get('qStart'),
+           Get('qEnd'),
+           Get('identity', 'concordance'),
+           Todo('nread_mapped'),
            Get('hqRegionSnr', 'snrA', lambda x: x[0]),
            Get('hqRegionSnr', 'snrC', lambda x: x[1]),
            Get('hqRegionSnr', 'snrG', lambda x: x[2]),
            Get('hqRegionSnr', 'snrT', lambda x: x[3]),
-           pkmid_mean, pkmid_channel_mean('A'), pkmid_channel_mean('C'),
-           pkmid_channel_mean('G'), pkmid_channel_mean('T'),
+           pkmid_mean,
+           pkmid_channel_mean('A'),
+           pkmid_channel_mean('C'),
+           pkmid_channel_mean('G'),
+           pkmid_channel_mean('T'),
+           Todo('BaselineLevelMean_A'),
+           Todo('BaselineLevelMean_C'),
+           Todo('BaselineLevelMean_G'),
+           Todo('BaselineLevelMean_T'),
+           Todo('pd_Empty'),
+           Todo('pd_Productive'),
+           Todo('pd_Other'),
+           Todo('pd_Undefined'),
           ]
     csv = []
     for read in aset:
