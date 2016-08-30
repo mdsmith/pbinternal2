@@ -6,11 +6,9 @@ import os
 import logging
 import numpy as np
 import glob
-from pbcommand.models.report import Report, Attribute, PlotGroup, Plot
 from pbcommand.cli import (pacbio_args_runner,
                            get_default_argparser_with_base_opts)
 from pbcommand.utils import setup_log
-from multiprocessing import Pool
 
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
 from pbcore.io.dataset.utils import (sampleHolesUniformly, quadratic_expand,
@@ -29,6 +27,13 @@ def Get(key, altName=None, transform=(lambda x: x)):
     if altName is None:
         altName = key
     getter.__name__ = altName
+    return getter
+
+def Todo(key):
+    """Values that need to be calculated. See ITG-85"""
+    def getter(x):
+        return ''
+    getter.__name__ = key
     return getter
 
 def getPkmid(read):
@@ -72,14 +77,30 @@ class ReadShare(object):
 
 def eol_qc_zmw_stats(aset, outcsv, nproc=1):
     start = time.clock()
-    acc = [Get('movieName', 'moviename'), Get('holeNumber', 'holenumber'),
-           Get('qStart'), Get('qEnd'), Get('identity', 'concordance'),
+    # Order comes from Remy's list in ITG-85
+    acc = [Get('movieName', 'moviename'),
+           Get('holeNumber', 'holenumber'),
+           Get('qStart'),
+           Get('qEnd'),
+           Get('identity', 'concordance'),
+           Todo('nread_mapped'),
            Get('hqRegionSnr', 'snrA', lambda x: x[0]),
            Get('hqRegionSnr', 'snrC', lambda x: x[1]),
            Get('hqRegionSnr', 'snrG', lambda x: x[2]),
            Get('hqRegionSnr', 'snrT', lambda x: x[3]),
-           pkmid_mean, pkmid_channel_mean('A'), pkmid_channel_mean('C'),
-           pkmid_channel_mean('G'), pkmid_channel_mean('T'),
+           pkmid_mean,
+           pkmid_channel_mean('A'),
+           pkmid_channel_mean('C'),
+           pkmid_channel_mean('G'),
+           pkmid_channel_mean('T'),
+           Todo('BaselineLevelMean_A'),
+           Todo('BaselineLevelMean_C'),
+           Todo('BaselineLevelMean_G'),
+           Todo('BaselineLevelMean_T'),
+           Todo('pd_Empty'),
+           Todo('pd_Productive'),
+           Todo('pd_Other'),
+           Todo('pd_Undefined'),
           ]
     csv = []
     for read in aset:
@@ -185,17 +206,13 @@ def loading_efficiency(aset):
 def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
     csv = []
     start = time.clock()
-    header = ['moviename',
-              'concordance',
-              'nreads',
-              'nreads_mapped',
-              'nsubreads',
-              'nsubreads_mapped',
-              'polrl_mean',
-              'polrl_std',
-              'substrate_id',
+    # Rearranged as per Remy's list in ITG-85: https://jira.pacificbiosciences.com/browse/ITG-85
+    header = ['substrate_id',
               'substrate_barcode',
               'substrate_lot_number',
+              'moviename',
+              'movie_length',
+              'movie_index_in_cell',
               'coupler_laser_power',
               'templateprepkit_barcode',
               'templateprepkit_lot_number',
@@ -203,12 +220,23 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'bindingkit_lot_number',
               'sequencingkitplate_barcode',
               'sequencingkitplate_lot_number',
-              'movie_length',
+              'concordance',
+              'nreads',
+              'nreads_mapped',
+              'nsubreads',
+              'nsubreads_mapped',
+              'loading_uniformity',
+              # Note that these next 4 are added from an extend call
+              'pd_Empty',
+              'pd_Productive',
+              'pd_Other',
+              'pd_Undefined',
+              # TODO: doesn't exist yet
+              'MeanAccuracy',
+              'polrl_mean',
+              'polrl_std',
               'insert_len_mean',
               'insert_len_std',
-              'movie_index_in_cell',
-              'loading_uniformity',
-              'pd_Empty', 'pd_Productive', 'pd_Other', 'pd_Undefined',
               'BaselineLevelMean_A',
               'BaselineLevelMean_C',
               'BaselineLevelMean_G',
@@ -221,10 +249,19 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'HqBasPkMidMean_C',
               'HqBasPkMidMean_G',
               'HqBasPkMidMean_T',
+              # TODO: need these 4 -- assume they are medians?
+              'HqBasPkMidMed_A',
+              'HqBasPkMidMed_C',
+              'HqBasPkMidMed_G',
+              'HqBasPkMidMed_T',
               'SnrDist_A',
               'SnrDist_C',
               'SnrDist_G',
               'SnrDist_T',
+              # TODO: these three are missing -- ask Remy how to calc
+              'Green Angle',
+              'Red Angle',
+              'Spectral Angle',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -246,7 +283,32 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
             movieincell = -1
 
         row = []
+        # substrate id
+        row.append(sset.metadata.collections[0].cellPac.barcode[:8])
+        # substrate barcode
+        row.append(sset.metadata.collections[0].cellPac.barcode)
+        # substrate lot number
+        row.append(sset.metadata.collections[0].cellPac.lotNumber)
+        # moviename
         row.append(movieName)
+        # movie length (minutes)
+        row.append(sset.metadata.collections[
+                       0].automation.automationParameters['MovieLength'].value)
+        # movie_index_in_cell
+        row.append(movieincell)
+        # coupler laser power
+        row.append(sset.metadata.collections[
+                       0].automation.automationParameters['CouplerLaserPower'].value)
+        # templateprepkit barcode
+        row.append(sset.metadata.collections[0].templatePrepKit.barcode)
+        # templateprepkit barcode
+        row.append(sset.metadata.collections[0].templatePrepKit.lotNumber)
+        # bindingkit barcode
+        row.append(sset.metadata.collections[0].bindingKit.barcode)
+        # bindingkit barcode
+        row.append(sset.metadata.collections[0].bindingKit.lotNumber)
+        row.append(sset.metadata.collections[0].sequencingKitPlate.barcode)
+        row.append(sset.metadata.collections[0].sequencingKitPlate.lotNumber)
         # concordance
         row.append(1.0 - np.mean(np.true_divide(
             aset.index.nMM + aset.index.nIns + aset.index.nDel,
@@ -259,76 +321,65 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(len(sset.index.qId == movie))
         # nsubreads mapped
         row.append(len(aset.index.qId == movie))
+        # loading uniformity:
+        row.append(loading_efficiency(aset))
+        # totalloading - aka
+        row.extend(sset.metadata.summaryStats.prodDist.bins)
+        # TODO: MeanAccuracy
+        row.append('')
         # polrl mean
         row.append(sset.metadata.summaryStats.readLenDist.sampleMean)
         # polrl stdev
         row.append(sset.metadata.summaryStats.readLenDist.sampleStd)
-        # substrate id
-        row.append(sset.metadata.collections[0].cellPac.barcode[:8])
-        # substrate barcode
-        row.append(sset.metadata.collections[0].cellPac.barcode)
-        # substrate barcode
-        row.append(sset.metadata.collections[0].cellPac.lotNumber)
-        # coupler laser power
-        row.append(sset.metadata.collections[
-            0].automation.automationParameters['CouplerLaserPower'].value)
-        # templateprepkit barcode
-        row.append(sset.metadata.collections[0].templatePrepKit.barcode)
-        # templateprepkit barcode
-        row.append(sset.metadata.collections[0].templatePrepKit.lotNumber)
-        # bindingkit barcode
-        row.append(sset.metadata.collections[0].bindingKit.barcode)
-        # bindingkit barcode
-        row.append(sset.metadata.collections[0].bindingKit.lotNumber)
-        row.append(sset.metadata.collections[0].sequencingKitPlate.barcode)
-        row.append(sset.metadata.collections[0].sequencingKitPlate.lotNumber)
-        # movie length (minutes)
-        row.append(sset.metadata.collections[
-            0].automation.automationParameters['MovieLength'].value)
         # insert len
         row.append(sset.metadata.summaryStats.insertReadLenDist.sampleMean)
         row.append(sset.metadata.summaryStats.insertReadLenDist.sampleStd)
-        row.append(movieincell)
-        # loading uniformity:
-        row.append(loading_efficiency(aset))
-        # totalloading
-        row.extend(sset.metadata.summaryStats.prodDist.bins)
         # baselineleveldist
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineLevelDist']['A'][0].sampleMean)
+                       'BaselineLevelDist']['A'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineLevelDist']['C'][0].sampleMean)
+                       'BaselineLevelDist']['C'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineLevelDist']['G'][0].sampleMean)
+                       'BaselineLevelDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineLevelDist']['T'][0].sampleMean)
+                       'BaselineLevelDist']['T'][0].sampleMean)
         # baselinestddev
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineStdDist']['A'][0].sampleMean)
+                       'BaselineStdDist']['A'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineStdDist']['C'][0].sampleMean)
+                       'BaselineStdDist']['C'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineStdDist']['G'][0].sampleMean)
+                       'BaselineStdDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'BaselineStdDist']['T'][0].sampleMean)
+                       'BaselineStdDist']['T'][0].sampleMean)
         # pkmid
         row.append(sset.metadata.summaryStats.channelDists[
-            'HqBasPkMidDist']['A'][0].sampleMean)
+                       'HqBasPkMidDist']['A'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'HqBasPkMidDist']['C'][0].sampleMean)
+                       'HqBasPkMidDist']['C'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'HqBasPkMidDist']['G'][0].sampleMean)
+                       'HqBasPkMidDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'HqBasPkMidDist']['T'][0].sampleMean)
+                       'HqBasPkMidDist']['T'][0].sampleMean)
+        # pkmedian -- TODO: check these are supposed to be medians. Above dist is continuous -- no median!
+        row.append('')
+        row.append('')
+        row.append('')
+        row.append('')
         # SNR
         row.append(sset.metadata.summaryStats.channelDists[
-            'SnrDist']['A'][0].sampleMean)
+                       'SnrDist']['A'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'SnrDist']['C'][0].sampleMean)
+                       'SnrDist']['C'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'SnrDist']['G'][0].sampleMean)
+                       'SnrDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
-            'SnrDist']['T'][0].sampleMean)
+                       'SnrDist']['T'][0].sampleMean)
+        # TODO: these three need to be calculated
+        row.append('')
+        row.append('')
+        row.append('')
+
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
     write_csv(outcsv, header, csv)
