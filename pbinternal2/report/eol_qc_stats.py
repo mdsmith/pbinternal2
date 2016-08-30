@@ -45,10 +45,16 @@ def spectralAngle(a, b):
     return atan(a/b)*180/pi
 
 def calcSpectralAngles(movieDir):
+    """Calculates the spectral angles EOL QC uses
+    The story behind why these angles are calculated this way and how they came to be an important metric in the final
+    chip grading is a mystery. Followup discussion is in https://jira.pacificbiosciences.com/browse/ITG-93
+
+    :param movieDir: Directory with all of the movie files exported by the instrument
+    :return: green, red and final spectral angles
+    """
     for filename in [f for f in glob('%s/traceSplit/*.log' % movieDir)]:
         with open(filename) as file:
             for line in file:
-                # follow the example calculation
                 for match in re.finditer(pattern, line):
                     gG,rG,gR,rR = [float(num) for num in match.groups()]
                     greenAngle = spectralAngle(gR, gG)
