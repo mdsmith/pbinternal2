@@ -292,6 +292,8 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'Green Angle',
               'Red Angle',
               'Spectral Angle',
+              'ICS Version',
+              'Sample Well Name',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -405,8 +407,11 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
                        'SnrDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
                        'SnrDist']['T'][0].sampleMean)
-        # TODO: these three need to be calculated
         row.extend(formatSpectralAngles(os.path.dirname(sset.toExternalFiles()[0])))
+        # TODO: pull these from the meta-data
+        #row.append(sset.metadata.collections[0].)
+        row.append('')
+        row.append('')
 
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
