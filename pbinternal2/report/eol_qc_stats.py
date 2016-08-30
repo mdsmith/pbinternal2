@@ -5,7 +5,9 @@ import sys
 import os
 import logging
 import numpy as np
-import glob
+from math import atan,pi
+import re
+from glob import glob
 from pbcommand.cli import (pacbio_args_runner,
                            get_default_argparser_with_base_opts)
 from pbcommand.utils import setup_log
@@ -35,6 +37,28 @@ def Todo(key):
         return ''
     getter.__name__ = key
     return getter
+
+# regex to match
+pattern = re.compile("updating trc.h5 matrix with measured matrix: ([+-]?\d*\.\d*) ([+-]?\d*\.\d*) ([+-]?\d*\.\d*) ([+-]?\d*\.\d*)")
+
+def spectralAngle(a, b):
+    return atan(a/b)*180/pi
+
+def calcSpectralAngles(movieDir):
+    for filename in [f for f in glob('%s/traceSplit/*.log' % movieDir)]:
+        with open(filename) as file:
+            for line in file:
+                # follow the example calculation
+                for match in re.finditer(pattern, line):
+                    gG,rG,gR,rR = [float(num) for num in match.groups()]
+                    greenAngle = spectralAngle(gR, gG)
+                    redAngle = spectralAngle(rR, rG)
+                    return greenAngle, redAngle, redAngle - greenAngle
+    return '', '', ''
+
+def formatSpectralAngles(movieDir):
+    return map(lambda x: ('%.2f' % x if isinstance(x, float) else x), calcSpectralAngles(movieDir))
+
 
 def getPkmid(read):
     try:
@@ -276,7 +300,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
             runpath = '/'.join(cellpath.split('/')[:-1])
             cellname = cellcode.split('_')[-1]
             pattern = os.path.join(runpath, '_'.join(['*', cellname]))
-            moviesincell = glob.glob(pattern)
+            moviesincell = glob(pattern)
             movieincell = moviesincell.index(cellpath)
         except ValueError:
             # VAlueError: the path isn't as expected, fname not in list
@@ -376,9 +400,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.summaryStats.channelDists[
                        'SnrDist']['T'][0].sampleMean)
         # TODO: these three need to be calculated
-        row.append('')
-        row.append('')
-        row.append('')
+        row.extend(formatSpectralAngles(os.path.dirname(sset.toExternalFiles()[0])))
 
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
