@@ -261,8 +261,6 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'pd_Productive',
               'pd_Other',
               'pd_Undefined',
-              # TODO: doesn't exist yet
-              'MeanAccuracy',
               'polrl_mean',
               'polrl_std',
               'insert_len_mean',
@@ -279,7 +277,6 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'HqBasPkMidMean_C',
               'HqBasPkMidMean_G',
               'HqBasPkMidMean_T',
-              # TODO: need these 4 -- assume they are medians?
               'HqBasPkMidMed_A',
               'HqBasPkMidMed_C',
               'HqBasPkMidMed_G',
@@ -288,7 +285,6 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'SnrDist_C',
               'SnrDist_G',
               'SnrDist_T',
-              # TODO: these three are missing -- ask Remy how to calc
               'Green Angle',
               'Red Angle',
               'Spectral Angle',
@@ -358,8 +354,6 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(loading_efficiency(aset))
         # totalloading - aka
         row.extend(sset.metadata.summaryStats.prodDist.bins)
-        # TODO: MeanAccuracy
-        row.append('')
         # polrl mean
         row.append(sset.metadata.summaryStats.readLenDist.sampleMean)
         # polrl stdev
