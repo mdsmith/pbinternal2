@@ -293,6 +293,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'Red Angle',
               'Spectral Angle',
               'ICS Version',
+              'Signal Processing Version',
               'Sample Well Name',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
@@ -408,10 +409,12 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.summaryStats.channelDists[
                        'SnrDist']['T'][0].sampleMean)
         row.extend(formatSpectralAngles(os.path.dirname(sset.toExternalFiles()[0])))
-        # TODO: pull these from the meta-data
-        #row.append(sset.metadata.collections[0].)
-        row.append('')
-        row.append('')
+        # inst control version
+        row.append(sset.metadata.collections[0].instCtrlVer)
+        # signal processing version
+        row.append(sset.metadata.collections[0].sigProcVer)
+        # sample name. e.g. VP52047-14_4754_BA020367_54097_2kLambda_200pM_LPTitration_Cell-5_12mW_Magbead
+        row.append(sset.metadata.collections[0].wellSample.name)
 
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
