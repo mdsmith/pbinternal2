@@ -394,11 +394,15 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
                        'HqBasPkMidDist']['G'][0].sampleMean)
         row.append(sset.metadata.summaryStats.channelDists[
                        'HqBasPkMidDist']['T'][0].sampleMean)
-        # pkmedian -- TODO: check these are supposed to be medians. Above dist is continuous -- no median!
-        row.append('')
-        row.append('')
-        row.append('')
-        row.append('')
+        # pkmedian
+        row.append(sset.metadata.summaryStats.channelDists[
+                       'HqBasPkMidDist']['A'][0].sampleMed)
+        row.append(sset.metadata.summaryStats.channelDists[
+                       'HqBasPkMidDist']['C'][0].sampleMed)
+        row.append(sset.metadata.summaryStats.channelDists[
+                       'HqBasPkMidDist']['G'][0].sampleMed)
+        row.append(sset.metadata.summaryStats.channelDists[
+                       'HqBasPkMidDist']['T'][0].sampleMed)
         # SNR
         row.append(sset.metadata.summaryStats.channelDists[
                        'SnrDist']['A'][0].sampleMean)
