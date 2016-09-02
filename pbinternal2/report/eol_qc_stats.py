@@ -290,6 +290,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'Spectral Angle',
               'ICS Version',
               'Signal Processing Version',
+              'pbinternal2 Version',
               'Instrument',
               'Sample Well Name',
               ]
@@ -412,6 +413,8 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.collections[0].instCtrlVer)
         # signal processing version
         row.append(sset.metadata.collections[0].sigProcVer)
+        # version of this code
+        row.append(__version__)
         # instrument used. e.g. 54097
         row.append(sset.metadata.collections[0].instrumentName)
         # sample name. e.g. VP52047-14_4754_BA020367_54097_2kLambda_200pM_LPTitration_Cell-5_12mW_Magbead
