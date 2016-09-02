@@ -293,6 +293,8 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'pbinternal2 Version',
               'Instrument',
               'Sample Well Name',
+              'sts.xml Windows',
+              'sts.xml POSIX',
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -419,6 +421,10 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         row.append(sset.metadata.collections[0].instrumentName)
         # sample name. e.g. VP52047-14_4754_BA020367_54097_2kLambda_200pM_LPTitration_Cell-5_12mW_Magbead
         row.append(sset.metadata.collections[0].wellSample.name)
+        # file path to sts.xml. Windows then POSIX styles
+        sts_path = '%s.sts.xml' % sset.fileNames[0].replace('.subreadset.xml', '')
+        row.append('\\%s' % sts_path.replace('/', '\\'))
+        row.append(sts_path)
 
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
