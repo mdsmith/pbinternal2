@@ -20,17 +20,20 @@ def to_report(reseq_conditions):
 
     cond_ids = []
     aln_paths = []
+    subread_paths = []
     path_exists = []
 
     for c in reseq_conditions.conditions:
         cond_ids.append(c.cond_id)
+        subread_paths.append(c.subreadset)
         aln_paths.append(c.alignmentset)
         path_exists.append(os.path.exists(c.alignmentset))
 
     c1 = Column("cond_id", "Condition Id", cond_ids)
     c2 = Column("file_exists", "File Exists", path_exists)
-    c3 = Column("path", "AlignmentSet Path", aln_paths)
-    columns = [c1, c2, c3]
+    c3 = Column("sub_path", "SubreadSet Path", subread_paths)
+    c4 = Column("aln_path", "AlignmentSet Path", aln_paths)
+    columns = [c1, c2, c3, c4]
 
     table = Table("cond_summary",
                   title="Condition Summary",
