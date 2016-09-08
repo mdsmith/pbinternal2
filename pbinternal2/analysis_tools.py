@@ -8,8 +8,8 @@ from pbcommand.models import FileTypes
 from pbinternal2.analysis.alignment_summary import run_cond_alignmentsets_to_report
 from pbinternal2.analysis.reseq_condition_summary import run_cond_to_report
 from pbinternal2.analysis.hello_world import run_hello_world
+from pbinternal2 import TOOL_NAMESPACE
 
-TOOL_NAMESPACE = 'pbinternal2'
 DRIVER_BASE = 'python -m pbinternal2.analysis_tools '
 
 registry = registry_builder(TOOL_NAMESPACE, DRIVER_BASE)
