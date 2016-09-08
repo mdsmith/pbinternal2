@@ -27,7 +27,6 @@ setup(
     zip_safe=False,
     install_requires=_get_requirements(_get_local_file(_REQUIREMENTS_FILE)),
     entry_points={'console_scripts': [
-        'makeMissingAdapterReport = pbinternal2.report.missing_adapter:main',
         'makeRainbowReport = pbinternal2.report.rainbow:main',
         'findAdapterIssues = pbinternal2.util.find_adapter_issues:main'
         ]}
