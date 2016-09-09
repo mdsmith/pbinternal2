@@ -8,6 +8,8 @@ import numpy as np
 from math import atan,pi
 import re
 from glob import glob
+import functools
+
 from pbcommand.cli import (pacbio_args_runner,
                            get_default_argparser_with_base_opts)
 from pbcommand.utils import setup_log
@@ -22,6 +24,16 @@ log = logging.getLogger(__name__)
 __version__ = get_version()
 
 # ZMW CSV:
+
+def or_empty_string(f):
+    """Intended for values that will error if "internal mode" isn't used. See ITG-107. """
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except IOError:
+            return ""
+    return wrapper
 
 def Get(key, altName=None, transform=(lambda x: x)):
     def getter(x):
@@ -78,20 +90,16 @@ def getPulseLabels(read):
     except KeyError:
         raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
 
+@or_empty_string
 def pkmid_mean(read):
-    try:
-        return np.mean(read.get('pms', getPkmid))
-    except IOError:
-        return ""
+    return np.mean(read.get('pms', getPkmid))
 
 def pkmid_channel_mean(channel):
+    @or_empty_string
     def midmean(read):
-        try:
-            pms = read.get('pms', getPkmid)
-            pls = read.get('pls', getPulseLabels)
-            return np.mean(pms[pls == channel])
-        except IOError:
-            return ""
+        pms = read.get('pms', getPkmid)
+        pls = read.get('pls', getPulseLabels)
+        return np.mean(pms[pls == channel])
     midmean.__name__ = 'pkmid_{c}_mean'.format(c=channel)
     return midmean
 
