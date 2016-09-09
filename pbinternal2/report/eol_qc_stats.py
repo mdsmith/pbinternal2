@@ -79,13 +79,19 @@ def getPulseLabels(read):
         raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
 
 def pkmid_mean(read):
-    return np.mean(read.get('pms', getPkmid))
+    try:
+        return np.mean(read.get('pms', getPkmid))
+    except IOError:
+        return ""
 
 def pkmid_channel_mean(channel):
     def midmean(read):
-        pms = read.get('pms', getPkmid)
-        pls = read.get('pls', getPulseLabels)
-        return np.mean(pms[pls == channel])
+        try:
+            pms = read.get('pms', getPkmid)
+            pls = read.get('pls', getPulseLabels)
+            return np.mean(pms[pls == channel])
+        except IOError:
+            return ""
     midmean.__name__ = 'pkmid_{c}_mean'.format(c=channel)
     return midmean
 
@@ -465,7 +471,7 @@ def eol_qc_stats(sset, aset, zmwscsv, moviescsv, nholes):
     try:
         sset[0].peer.opt('pm')
     except KeyError:
-        raise IOError("Input Subreads BAM file must be PacBio Internal Bam")
+        log.info("Input Subreads BAM file must be PacBio Internal Bam. Related metrics will appear as blank values.")
     eol_qc_movie_stats(sset, aset, moviescsv)
     sample_uniform(aset, nholes)
     eol_qc_zmw_stats(aset, zmwscsv)
