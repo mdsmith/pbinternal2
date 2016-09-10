@@ -6,6 +6,7 @@ resolve functions should have a class here.
 
 import unittest
 import os.path
+import shutil
 import pbtestdata
 import pbcommand.testkit
 
@@ -21,6 +22,9 @@ class TestEolQcReport(pbcommand.testkit.PbTestApp):
     REQUIRES_PBCORE = True
     INPUT_FILES = [SSET, ASET]
     TASK_OPTIONS = {}
+
+    def run_after(self, rtc, output_dir):
+        shutil.rmtree(output_dir)    
 
 if __name__ == "__main__":
     unittest.main()
