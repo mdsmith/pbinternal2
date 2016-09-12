@@ -27,11 +27,6 @@ setup(
     zip_safe=False,
     install_requires=_get_requirements(_get_local_file(_REQUIREMENTS_FILE)),
     entry_points={'console_scripts': [
-        'makeDotReport = pbinternal2.report.dot:main',
-        'makeMissingAdapterReport = pbinternal2.report.missing_adapter:main',
-        'alignmentToPng = pbinternal2.util.alignment_to_png:main',
-        'makeRainbowReport = pbinternal2.report.rainbow:main',
-        'makeReadMapReport = pbinternal2.report.readmap:main',
-        'findAdapterIssues = pbinternal2.util.find_adapter_issues:main'
+        'makeRainbowReport = pbinternal2.report.rainbow:main'
         ]}
 )
