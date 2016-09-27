@@ -249,6 +249,11 @@ def loading_efficiency(aset):
     return penalty
 
 def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
+    # pull the "frozen" host and version from ENV
+    if 'SMRTLINK_HOST' not in os.environ or 'SMRTLINK_VERSION' not in os.environ:
+        raise ValueError("Must set SMRTLINK_HOST and SMRTLINK_VERSION env variables to note 'frozen' version of the code")
+    smrtlink_host = os.environ['SMRTLINK_HOST']
+    smrtlink_version = os.environ['SMRTLINK_VERSION']
     csv = []
     start = time.clock()
     # Rearranged as per Remy's list in ITG-85: https://jira.pacificbiosciences.com/browse/ITG-85
@@ -310,6 +315,7 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
               'Sample Well Name',
               'sts.xml Windows',
               'sts.xml POSIX',
+              smrtlink_host
               ]
     # TODO (mdsmith)(7-14-2016): Clean this up, use per external-resouce
     # sts.xml accessor
@@ -440,6 +446,8 @@ def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
         sts_path = '%s.sts.xml' % sset.fileNames[0].replace('.subreadset.xml', '')
         row.append('\\%s' % sts_path.replace('/', '\\'))
         row.append(sts_path)
+        # smrtlink deploy version -- the "frozen" software
+        row.append(smrtlink_version)
 
         csv.append(row)
     log.info("Movie info processing time: {:}".format(time.clock() - start))
