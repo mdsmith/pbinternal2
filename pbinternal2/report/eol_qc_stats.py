@@ -493,13 +493,10 @@ def run(args):
     log.info("Starting movie analysis")
     eol_qc_movie_stats(args.subreadset, args.alignmentset,
                        '.'.join([args.outprefix, 'movies', 'csv']))
-    try:
-        args.sampler(args.alignmentset, args.nreads)
-        log.info("Starting zmw analysis")
-        eol_qc_zmw_stats(args.alignmentset,
-                         '.'.join([args.outprefix, 'zmws', 'csv']))
-    except:
-      log.error("Can't make per ZMW stats")
+    args.sampler(args.alignmentset, args.nreads)
+    log.info("Starting zmw analysis")
+    eol_qc_zmw_stats(args.alignmentset,
+                     '.'.join([args.outprefix, 'zmws', 'csv']))
     return 0
 
 def get_parser():
