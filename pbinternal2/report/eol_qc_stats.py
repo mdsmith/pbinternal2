@@ -251,9 +251,9 @@ def loading_efficiency(aset):
 def eol_qc_movie_stats(sset, aset, outcsv, nproc=1):
     # pull the "frozen" host and version from ENV
     if 'SMRTLINK_HOST' not in os.environ or 'SMRTLINK_VERSION' not in os.environ:
-        raise ValueError("Must set SMRTLINK_HOST and SMRTLINK_VERSION env variables to note 'frozen' version of the code")
-    smrtlink_host = os.environ['SMRTLINK_HOST']
-    smrtlink_version = os.environ['SMRTLINK_VERSION']
+        log.warn("Must set SMRTLINK_HOST and SMRTLINK_VERSION env variables to note 'frozen' version of the code")
+    smrtlink_host = os.environ['SMRTLINK_HOST'] if 'SMRTLINK_HOST' in os.environ else 'smrtlink-host'
+    smrtlink_version = os.environ['SMRTLINK_VERSION'] if 'SMRTLINK_VERSION' in os.environ else  ''
     csv = []
     start = time.clock()
     # Rearranged as per Remy's list in ITG-85: https://jira.pacificbiosciences.com/browse/ITG-85
