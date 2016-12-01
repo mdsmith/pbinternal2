@@ -137,6 +137,9 @@ def get_hns(h5fh):
 def get_prods(h5fh):
     return h5fh['/ZMWMetrics/Productivity'].value
 
+def get_loads(h5fh):
+    return h5fh['/ZMWMetrics/Loading'].value
+
 def get_pulserates(h5fh):
     return h5fh['/ZMWMetrics/PulseRate'].value
 
@@ -662,7 +665,10 @@ def prodVSpulserate(stsh5fhs, names, outprefix):
 
         ax = rax[1]
         ax.set_title('{n} Pulserates Densities'.format(n=name))
-        fig, ax = stack_densities([p0prs, p1prs, p2prs], ['p0', 'p1', 'p2'],
+        dists = [dist for dist in [p0prs, p1prs, p2prs] if len(dist)]
+        labels = [label for label, dist in zip(
+            ['p0', 'p1', 'p2'], [p0prs, p1prs, p2prs]) if len(dist)]
+        fig, ax = stack_densities(dists, labels,
                                   fig=fig, ax=ax, bw=.1,
                                   colors=['blue', 'green', 'red'])
         ax.set_ylim(ymin=0, ymax=6)
@@ -695,6 +701,46 @@ def analyze_loading(stsfns, names, outdir, dist):
 
     return chi2, pval, figs, tables
 
+def loading_table(stsfhs, names, outprefix):
+    header = [('name', object),
+              ('empty', np.int),
+              ('single', np.int),
+              ('multi', np.int),
+              ('ind', np.int),
+             ]
+    rows = []
+    for stsfh, name in zip(stsfhs, names):
+        row = [name]
+        loads = get_loads(stsfh)
+        row.append(np.count_nonzero(loads == Load.EMPTY))
+        row.append(np.count_nonzero(loads == Load.SINGLE))
+        row.append(np.count_nonzero(loads == Load.MULTI))
+        row.append(np.count_nonzero(loads == Load.IND))
+        rows.append(tuple(row))
+    csv = np.array(rows, dtype=header).view(np.recarray)
+    ofn = outprefix + "_loading_distributions.csv"
+    write_csv(ofn, csv)
+    return ofn
+
+def productivity_table(stsfhs, names, outprefix):
+    header = [('name', object),
+              ('empty', np.int),
+              ('prod', np.int),
+              ('other', np.int),
+             ]
+    rows = []
+    for stsfh, name in zip(stsfhs, names):
+        row = [name]
+        prods = get_prods(stsfh)
+        row.append(np.count_nonzero(prods == 0))
+        row.append(np.count_nonzero(prods == 1))
+        row.append(np.count_nonzero(prods == 2))
+        rows.append(tuple(row))
+    csv = np.array(rows, dtype=header).view(np.recarray)
+    ofn = outprefix + "_productivity_distributions.csv"
+    write_csv(ofn, csv)
+    return ofn
+
 # This will need to be re-written for the conditional comparison internal
 # report
 def loading_report(stsfns, names, outdir, dist):
@@ -703,8 +749,11 @@ def loading_report(stsfns, names, outdir, dist):
     chi2, pval, lfigs, tables = analyze_loading(stsfns, names, outdir, dist)
 
     pfigs = []
-    pfigs.extend(prodVSpulserate(open_h5s(args.stsh5), args.name,
+    stsfhs = open_h5s(stsfns)
+    pfigs.extend(prodVSpulserate(stsfhs, names,
                                  outprefix))
+    ldist_tables = loading_table(stsfhs, names, outprefix)
+    pdist_tables = productivity_table(stsfhs, names, outprefix)
 
     # Attributes
     attrs = [("loading_vs_poisson_version", __version__,
@@ -788,7 +837,10 @@ if __name__ == '__main__':
                     outprefix=('{p}_{n}'.format(p=args.outprefix, n=name)),
                     accessor=accessor, prox=args.dist)
                 for stsh5, name in zip(args.stsh5, args.name)]
-        obss, hnss = zip(*obss)
+        obss, hnss, ofigns = zip(*obss)
         chi2, pval, figns, csvs = evalloadings(obss, args.name, hnss=hnss,
                                                outprefix=args.outprefix)
-    prodVSpulserate(open_h5s(args.stsh5), args.name, args.outprefix)
+    stsfhs = open_h5s(args.stsh5)
+    prodVSpulserate(stsfhs, args.name, args.outprefix)
+    loading_table(stsfhs, args.name, args.outprefix)
+    productivity_table(stsfhs, args.name, args.outprefix)

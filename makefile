@@ -38,6 +38,7 @@ emit-tool-contracts:
 	python -m pbinternal2.analysis_tools emit-tool-contracts -o tool-contracts
 	python -m pbinternal2.pa_tasks emit-tool-contracts -o tool-contracts
 	python -m pbinternal2.tasks.eol_qc emit-tool-contracts -o tool-contracts
+	python -m pbinternal2.tasks.loading emit-tool-contracts -o tool-contracts
 
 emit-tcs: emit-tool-contracts
 
