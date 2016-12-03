@@ -15,8 +15,9 @@ from pbcommand.cli import (pacbio_args_runner,
 from pbcommand.utils import setup_log
 
 from pbcore.io import openDataFile, SubreadSet, AlignmentSet
-from pbcore.io.dataset.utils import (sampleHolesUniformly, quadratic_expand,
-                                     xy_to_hn, hn_to_xy)
+from pbinternal2.util.DataSetUtils import (sampleHolesUniformly,
+                                           quadratic_expand, xy_to_hn,
+                                           hn_to_xy)
 
 from pbinternal2 import get_version
 

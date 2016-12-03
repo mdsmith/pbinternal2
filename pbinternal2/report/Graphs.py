@@ -11,7 +11,7 @@ from matplotlib import cm
 import numpy as np
 from scipy.stats import gaussian_kde
 from Bio.Statistics.lowess import lowess
-from pbcore.io.dataset.utils import hn_to_xy
+from pbinternal2.util.DataSetUtils import hn_to_xy
 
 log = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ import h5py
 from matplotlib import pyplot as plt
 from scipy.stats import poisson, chi2 as chi2dist
 from pbcore.io.dataset.DataSetIO import _stackRecArrays
-from pbcore.io.dataset.utils import hn_to_xy
+from pbinternal2.util.DataSetUtils import hn_to_xy
 from pbinternal2.report.Graphs import (draw_chip, mh_colors,
                                        gen_mh_multiscatter, scatter_set,
                                        gen_histogram, gen_mh_scatter,
@@ -282,7 +282,9 @@ def stsh5_to_observations(stsh5, accessor=get_readtype_loading,
         ofn = outprefix + '_chiproi.png'
         fig, ax = draw_chip(hns)
         savefig(fig, ofn)
-        figs.append(('chip_roi_layout', ofn))
+        figs.append(('_'.join(['chip_roi_layout',
+                               os.path.basename(outprefix)]),
+                     ofn))
 
     # divide into regions of observation:
     blocks = divide_holes(hns, prox)
@@ -299,13 +301,17 @@ def stsh5_to_observations(stsh5, accessor=get_readtype_loading,
             # This will roll fig, ax through the list intentionally.
             fig, ax = draw_chip(hns[block], color=col, fig=fig, ax=ax)
         savefig(fig, ofn)
-        figs.append(('observed_clusters', ofn))
+        figs.append(('_'.join(['observed_clusters',
+                               os.path.basename(outprefix)]),
+                     ofn))
 
         # hist of group sizes:
         ofn = outprefix + '_blocksizes.png'
         fig, ax = gen_histogram([len(bl) for bl in blocks])
         savefig(fig, ofn)
-        figs.append(('blocksize_dist', ofn))
+        figs.append(('_'.join(['blocksize_dist',
+                               os.path.basename(outprefix)]),
+                     ofn))
 
     # tally things up:
     obs = obs_chip(blocks, loadings)
@@ -364,7 +370,9 @@ def poisson_curves(obss, names, outprefix):
     ofn = outprefix + '_poisson_curves.png'
     savefig(fig, ofn)
     plt.close(fig)
-    return [('poisson_curves', ofn)]
+    return [('_'.join(['poisson_curves',
+                       os.path.basename(outprefix)]),
+             ofn)]
 
 def expec(samp, lm):
     numer = (lm * (1 - np.exp(-1 * lm)))
@@ -427,7 +435,8 @@ def graph_lambdas(lambdas, outprefix, names):
     ofn = outprefix + '_EstLambdas.png'
     savefig(fig, ofn)
     plt.close(fig)
-    return [('lambda_ests', ofn)]
+    return [('_'.join(['lambda_ests',
+                       os.path.basename(outprefix)]), ofn)]
 
 def csv_to_dists(csv):
     obsds = []
@@ -464,7 +473,9 @@ def graph_dists(obsds, expds, outprefix, chi2=None, df=None):
     ofn = outprefix + '_ObsVsExpDists.png'
     savefig(fig, ofn)
     plt.close(fig)
-    return [('obs_vs_exp_dists', ofn)]
+    return [('_'.join(['obs_vs_exp_dists',
+                       os.path.basename(outprefix)]),
+             ofn)]
 
     """
     # Graph errors:
@@ -540,18 +551,19 @@ def evalloading(obs, hns=None, error='variance'):
     chi2 = 0
     rows = []
     header = [('estlmbd', np.float),
-              ('obsEmpt', np.int),
-              ('obsSing', np.int),
-              ('obsMult', np.int),
-              ('expEmpt', np.float),
-              ('expSing', np.float),
-              ('expMult', np.float),
+              ('obsempt', np.int),
+              ('obssing', np.int),
+              ('obsmult', np.int),
+              ('expempt', np.float),
+              ('expsing', np.float),
+              ('expmult', np.float),
               ('chi2', np.float),
               ('hns', object),
              ]
     for od, lm, hns in zip(make_dists(orig_obs), lambdas, hns):
         ed = []
         this_chi2 = 0
+        #print ''
         for i, oc in enumerate(od):
             if i < 2:
                 pi = ((lm ** i) * np.exp(-1 * lm)) / math.factorial(i)
@@ -562,21 +574,24 @@ def evalloading(obs, hns=None, error='variance'):
             totsamples = sum(od)
             exp = totsamples * pi
             ed.append(exp)
-            var = pi * (1 - pi) * totsamples
             if error == 'variance':
                 # Binomial variance denominator formula
+                var = pi * (1 - pi) * totsamples
+                #print var
                 if var > 0.0:
                     this_chi2 += np.true_divide((oc - exp)**2, var)
             else:
                 # Expected count denominator formula:
+                # TODO: If this is a crazy small number it can blow up your
+                # chi2
                 if exp > 0.0:
                     this_chi2 += np.true_divide((oc - exp)**2, exp)
         chi2 += this_chi2
 
-        #print ''
         #print lm
         #print od
         #print ed
+        #print this_chi2
         row = [lm]
         row.extend(od)
         row.extend(ed)
@@ -624,7 +639,8 @@ def evalloadings(obss, names, hnss=None, outprefix=None, error='variance'):
                                       name))
 
     obsds, expds = csv_to_dists(_stackRecArrays(csvs))
-    figs.extend(graph_dists(obsds, expds, outprefix, chi2=chi2, df=df))
+    if outprefix:
+        figs.extend(graph_dists(obsds, expds, outprefix, chi2=chi2, df=df))
     if len(csvs) > 1:
         lconds = [cond.estlmbd for cond in csvs]
         lconds.append(np.array([l for cond in csvs for l in cond.estlmbd]))
@@ -637,6 +653,8 @@ def prodVSpulserate(stsh5fhs, names, outprefix):
     fig, axs = plt.subplots(nrows=len(stsh5fhs), ncols=2,
                             sharex='col', sharey='col', figsize=(8.5, 11),
                             dpi=200)
+    if len(stsh5fhs) == 1:
+        axs = [axs]
     for h5, name, rax in zip(stsh5fhs, names, axs):
         hns = get_hns(h5)
         prod = get_prods(h5)
@@ -678,25 +696,28 @@ def prodVSpulserate(stsh5fhs, names, outprefix):
 
     ofn = outprefix + "_pulserateVSproductivity.png"
     savefig(fig, ofn)
-    figs.append((Constants.PROD_VS_PR_ID, ofn))
+    figs.append(('_'.join([Constants.PROD_VS_PR_ID,
+                           os.path.basename(outprefix)]),
+                 ofn))
     plt.close(fig)
     return figs
 
 
-def analyze_loading(stsfns, names, outdir, dist):
+def analyze_loading(stsfns, names, outprefix, dist):
     figs = []
     obss = []
     hnss = []
     for stsfn, name in zip(stsfns, names):
-        outprefix = os.path.join(outdir, name)
+        this_outprefix = outprefix + '_' + name
         obs, hns, ofigs = stsh5_to_observations(stsfn,
                                                 accessor=get_readtype_loading,
-                                                outprefix=outprefix,
+                                                outprefix=this_outprefix,
                                                 prox=dist)
         obss.append(obs)
         hnss.append(hns)
         figs.extend(ofigs)
-    chi2, pval, lfigs, tables = evalloadings(obss, names, hnss)
+    chi2, pval, lfigs, tables = evalloadings(obss, names, hnss,
+                                             outprefix=outprefix)
     figs.extend(lfigs)
 
     return chi2, pval, figs, tables
@@ -744,9 +765,11 @@ def productivity_table(stsfhs, names, outprefix):
 # This will need to be re-written for the conditional comparison internal
 # report
 def loading_report(stsfns, names, outdir, dist):
+    # for lack of a singular name:
+    name = os.path.join(outdir, 'loading')
     outprefix = os.path.join(outdir, name)
 
-    chi2, pval, lfigs, tables = analyze_loading(stsfns, names, outdir, dist)
+    chi2, pval, lfigs, tables = analyze_loading(stsfns, names, outprefix, dist)
 
     pfigs = []
     stsfhs = open_h5s(stsfns)
@@ -766,12 +789,12 @@ def loading_report(stsfns, names, outdir, dist):
     # Plots
     lpg = PlotGroup(Constants.LOAD_PG)
     for plot_id, png in lfigs:
-        plot = Plot(plot_id, png)
+        plot = Plot(plot_id, os.path.relpath(png))
         lpg.add_plot(plot)
 
     ppg = PlotGroup(Constants.PROD_PG)
     for plot_id, png in pfigs:
-        plot = Plot(plot_id, png)
+        plot = Plot(plot_id, os.path.relpath(png))
         ppg.add_plot(plot)
 
     plotgroups = [lpg, ppg]
@@ -779,8 +802,8 @@ def loading_report(stsfns, names, outdir, dist):
     # Tables
     pbctables = []
     for table in tables:
-        pbccolumns = [Column(name, header=name, values=vals) for name, vals in
-                zip(table.dtype.names, table.T)]
+        pbccolumns = [Column(name, header=name, values=table[name])
+                      for name in table.dtype.names]
         pbctables.append(Table('loading_table',
                                title='Loading Prediction Quality Metrics',
                                columns=pbccolumns))
@@ -817,6 +840,7 @@ if __name__ == '__main__':
     pad('--dist', default=20, type=int,
         help=('Size of observation blocks'))
     pad('--prodonly', default=False, action='store_true')
+    pad('--denom', default='variance', choices=['variance', 'expected'])
     args = parser.parse_args()
     if not args.prodonly:
         accessor = get_readtype_loading
@@ -839,7 +863,8 @@ if __name__ == '__main__':
                 for stsh5, name in zip(args.stsh5, args.name)]
         obss, hnss, ofigns = zip(*obss)
         chi2, pval, figns, csvs = evalloadings(obss, args.name, hnss=hnss,
-                                               outprefix=args.outprefix)
+                                               outprefix=args.outprefix,
+                                               error=args.denom)
     stsfhs = open_h5s(args.stsh5)
     prodVSpulserate(stsfhs, args.name, args.outprefix)
     loading_table(stsfhs, args.name, args.outprefix)

@@ -33,7 +33,7 @@ registry = registry_builder(TOOL_NAMESPACE, Constants.DRIVER_BASE)
 
 
 @registry("loading_vs_poisson_report", "0.1.0",
-          (FileTypes.STS_H5),
+          FileTypes.STS_H5,
           FileTypes.REPORT,
           is_distributed=True,
           nproc=1,

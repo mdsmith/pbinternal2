@@ -7,7 +7,7 @@ import tempfile
 #from pbcore.util.Process import backticks
 from base_test_case import PACKAGE_DATA_DIR, ROOT_DATA_DIR, run_backticks
 from base_test_case import BaseTestCase
-from pbinternal2.util.range import Range, Ranges, OverlappingRanges
+from pbinternal2.util.Range import Range, Ranges, OverlappingRanges
 
 log = logging.getLogger(__name__)
 
