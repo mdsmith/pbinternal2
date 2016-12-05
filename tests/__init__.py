@@ -11,4 +11,4 @@ __credits__ = ['M. Kocher']
 __license__ = 'MIT License'
 __maintainer__ = 'M. Kocher'
 __email__ = 'Michael.Kocher@me.com'
-__version__ = '0.1'
+__version__ = '0.2'
