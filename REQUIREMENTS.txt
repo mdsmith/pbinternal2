@@ -5,3 +5,6 @@ pbreports>=3.1.0
 # this needs to be re-evaluated
 plotly
 selenium
+matplotlib
+scipy
+biopython

@@ -31,7 +31,10 @@ class Constants(object):
 
     GNU_MODULE_INIT = "source /mnt/software/Modules/current/init/bash"
 
-    GNU_MODULE_BASE_CALLER = "module load basecaller/3.2.0"
+    GNU_MODULE_LOAD = "module load"
+
+    BASECALLER_MODULE = "basecaller/4.0.0"
+    BASECALLER_MODULE_ID = "basecaller_module"
 
     BASECALLER_OPTIONS = "--internal --method=TA_DME_FFHmm_P2B"
     BASECALLER_OPTIONS_ID = "basecaller_options"
@@ -39,15 +42,23 @@ class Constants(object):
     BASECALLER_EXE_ID = "basecaller_exe"
 
     BASE_CALLER_OPTIONS = {BASECALLER_EXE_ID: BASECALLER_EXE,
-                           BASECALLER_OPTIONS_ID: BASECALLER_OPTIONS}
-
-    # FIXME. See comments on the base-caller
-    BAZ2BAM_WRAPPER = "baz2bam-wrapper.sh"
+                           BASECALLER_OPTIONS_ID: BASECALLER_OPTIONS,
+                           BASECALLER_MODULE_ID: BASECALLER_MODULE}
 
     BAZ2BAM_EXE = "baz2bam"
     BAZ2BAM_EXE_ID = "baz2bam_exe"
+    PPA_MODULE = "basecaller/4.0.0"
+    PPA_MODULE_ID = "ppa_module"
+
     MIN_SUBREAD_LENGTH_ID = "min_subread_length"
     MIN_SUBREAD_LENGTH = 50
+
+    BAZ2BAM_OPTIONS = {
+        PPA_MODULE_ID: PPA_MODULE,
+        BAZ2BAM_EXE_ID: BAZ2BAM_EXE,
+        MIN_SUBREAD_LENGTH_ID: MIN_SUBREAD_LENGTH,
+        }
+
     BAM2BAM_EXE = "bam2bam"
     BAM2BAM_EXE_ID = "bam2bam_exe"
     BLASR_OPTIONS_ID = "blasr_options"
@@ -66,22 +77,22 @@ def run_basecaller(trc_file, baz_file,
                    stdout=sys.stdout,
                    stderr=sys.stderr,
                    basecaller_exe=Constants.BASECALLER_EXE,
-                   basecaller_options=Constants.BASECALLER_OPTIONS):
+                   basecaller_options=Constants.BASECALLER_OPTIONS,
+                   basecaller_module=Constants.BASECALLER_MODULE):
     """
     Run the offline basecaller on a trace file.
     """
 
-    # FIXME(mpkocher)(2016-8-11) This should be configured via task option
-    # to source a specific version of the base caller console app GNU module
-    # this is a mess. run_cmd should default to /bin/bash, otherwise you'll
-    # get a /bin/sh: 1: source: not found error. Even
-    exe = " && ".join(["/bin/bash", Constants.GNU_MODULE_INIT,
-                       Constants.GNU_MODULE_BASE_CALLER,
+    exe = " && ".join([Constants.GNU_MODULE_INIT,
+                       ' '.join([Constants.GNU_MODULE_LOAD,
+                                 basecaller_module]),
                        basecaller_exe])
 
-    exe = "base-caller-wrapper.sh"
-
     args = [
+        # Wrap with a bash invocation (instead of sh)
+        "/bin/bash",
+        "-c",
+        "'",
         exe,
         "--inputfile={i}".format(i=trc_file),
         "--outputbazfile={o}".format(o=baz_file),
@@ -89,6 +100,9 @@ def run_basecaller(trc_file, baz_file,
     ]
     if basecaller_options != "":
         args.extend(basecaller_options.split(' '))
+
+    # finish bash invocation wrap
+    args.append("'")
 
     logging.info("Command " + ' '.join(args))
 
@@ -128,6 +142,7 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
                 nproc=1,
                 min_subread_length=Constants.MIN_SUBREAD_LENGTH,
                 baz2bam_exe=Constants.BAZ2BAM_EXE,
+                ppa_module=Constants.PPA_MODULE,
                 stdout=sys.stdout, stderr=sys.stderr,
                 dataset_name_suffix=None):
     """
@@ -145,9 +160,15 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
     output_base = re.sub(".subreadset.xml", "", output_file)
     output_dir = op.dirname(output_file)
 
-    # FIXME (See base-caller wrapper for comments
-    exe = Constants.BAZ2BAM_WRAPPER
+    exe = " && ".join([Constants.GNU_MODULE_INIT,
+                       ' '.join([Constants.GNU_MODULE_LOAD,
+                                 ppa_module]),
+                       baz2bam_exe])
+
     args = [
+        "/bin/bash",
+        "-c",
+        "'",
         exe,
         baz_file,
         "--silent",
@@ -155,7 +176,9 @@ def run_baz2bam(baz_file, adapter_fa, metadata_xml, output_file,
         "--metadata={x}".format(x=metadata_xml),
         "--adapter={f}".format(f=adapter_fa),
         "-o", output_base,
-        "-j", str(nproc)
+        "-j", str(nproc),
+        "-b", str(nproc),
+        "'",
     ]
     logging.info(" ".join(args))
     result = run_cmd(' '.join(args), stdout, stderr)
@@ -262,7 +285,8 @@ def task_basecaller(rtc):
         nproc=rtc.task.nproc,
         basecaller_options=rtc.task.options[
             _get_id(Constants.BASECALLER_OPTIONS_ID)],
-        basecaller_exe=rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)])
+        basecaller_exe=rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)],
+        basecaller_module=rtc.task.options[_get_id(Constants.BASECALLER_MODULE_ID)])
 
 
 @registry("baz2bam", "0.1.0",
@@ -270,10 +294,8 @@ def task_basecaller(rtc):
           FileTypes.DS_SUBREADS,
           is_distributed=True,
           nproc=SymbolTypes.MAX_NPROC,
-          options={
-              Constants.BAZ2BAM_EXE_ID: Constants.BAZ2BAM_EXE,
-              Constants.MIN_SUBREAD_LENGTH_ID: Constants.MIN_SUBREAD_LENGTH,
-          })
+          options=Constants.BAZ2BAM_OPTIONS,
+         )
 def task_baz2bam(rtc):
     return run_baz2bam(
         baz_file=rtc.task.input_files[0],
@@ -283,7 +305,8 @@ def task_baz2bam(rtc):
         min_subread_length=rtc.task.options[
             _get_id(Constants.MIN_SUBREAD_LENGTH_ID)],
         nproc=rtc.task.nproc,
-        baz2bam_exe=rtc.task.options[_get_id(Constants.BAZ2BAM_EXE_ID)])
+        baz2bam_exe=rtc.task.options[_get_id(Constants.BAZ2BAM_EXE_ID)],
+        ppa_module=rtc.task.options[_get_id(Constants.PPA_MODULE_ID)])
 
 
 @registry("bam2bam", "0.1.0",
@@ -331,7 +354,7 @@ def task_pbalign_unrolled(rtc):
           FileTypes.DS_SUBREADS,
           FileTypes.BAZ,
           is_distributed=True,
-          nproc=1,
+          nproc=SymbolTypes.MAX_NPROC,
           options=Constants.BASE_CALLER_OPTIONS,
           name="SubreadSet/Trace Refarm")
 def run_base_caller_from_subreadset(rtc):
@@ -343,16 +366,20 @@ def run_base_caller_from_subreadset(rtc):
 
     base_caller_options = rtc.task.options[_get_id(Constants.BASECALLER_OPTIONS_ID)]
     basecaller_exe = rtc.task.options[_get_id(Constants.BASECALLER_EXE_ID)]
+    basecaller_module = rtc.task.options[_get_id(Constants.BASECALLER_MODULE_ID)]
 
     return run_basecaller(trace_path, baz_output_file,
                           nproc=rtc.task.nproc,
                           basecaller_options=base_caller_options,
-                          basecaller_exe=basecaller_exe)
+                          basecaller_exe=basecaller_exe,
+                          basecaller_module=basecaller_module)
 
 
 @registry("baz2subreadset", "0.2.1",
           (FileTypes.DS_SUBREADS, FileTypes.BAZ),
-          (FileTypes.DS_SUBREADS, ),
+          (FileTypes.DS_SUBREADS, FileTypes.STS_H5),
+          options=Constants.BAZ2BAM_OPTIONS,
+          nproc=SymbolTypes.MAX_NPROC,
           is_distributed=True, name="Baz To SubreadSet")
 def run_baz2subreadset(rtc):
     """Convert the Baz File to a SubreadSet.
@@ -384,10 +411,17 @@ def run_baz2subreadset(rtc):
         adapters_fasta = op.join(output_dir, op.basename(adapters_fasta))
         write_adapters_from_subreadset(original_subreadset, adapters_fasta)
 
+    ppa_module=rtc.task.options[_get_id(Constants.PPA_MODULE_ID)]
+    baz2bam_exe=rtc.task.options[_get_id(Constants.BAZ2BAM_EXE_ID)]
+    min_subread_length=rtc.task.options[
+        _get_id(Constants.MIN_SUBREAD_LENGTH_ID)]
     return run_baz2bam(baz, adapters_fasta, run_metadata_xml,
                        output_subreadset,
                        nproc=nproc,
-                       dataset_name_suffix="refarmed")
+                       dataset_name_suffix="refarmed",
+                       ppa_module=ppa_module,
+                       baz2bam_exe=baz2bam_exe,
+                       min_subread_length=min_subread_length)
 
 
 @registry("compare_subreadsets_report", "0.2.0",
